@@ -8,787 +8,1398 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, collection, query, orderBy, onSnapshot, serverTimestamp, writeBatch, limit } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
-
-        // ══════════════════════════════════════════════════
-        // COLE AQUI AS CREDENCIAIS DO SEU PROJETO FIREBASE
-        // Console: https://console.firebase.google.com
-        // ══════════════════════════════════════════════════
-        const firebaseConfig = {
-         // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyAcdTxtNhCXnAD6-CvnMpoe2uKM-njddtA",
-  authDomain: "paijose-terreiro.firebaseapp.com",
-  databaseURL: "https://paijose-terreiro-default-rtdb.firebaseio.com",
-  projectId: "paijose-terreiro",
-  storageBucket: "paijose-terreiro.firebasestorage.app",
-  messagingSenderId: "810035016716",
-  appId: "1:810035016716:web:bf3ddf333b3af0c2166a29"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-                    };
-
-        const app  = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db   = getFirestore(app);
-
-        window._fb = {
-            auth, db,
-            signInWithEmailAndPassword, signOut, sendPasswordResetEmail,
-            updatePassword, EmailAuthProvider, reauthenticateWithCredential, onAuthStateChanged,
-            doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-            collection, query, orderBy, onSnapshot, serverTimestamp, writeBatch, limit
-        };
-        window.dispatchEvent(new Event('firebase-ready'));
-    </script>
     <script>
-        tailwind.config = {
-            theme: { extend: {
-                colors: { umbanda:{50:'#fafaf9',100:'#f5f5f4',200:'#e7e5e4',800:'#292524',900:'#1c1917'}, ouro:{500:'#ca8a04',600:'#a16207'} },
-                fontFamily: { cinzel:['Cinzel','serif'], sans:['"Plus Jakarta Sans"','sans-serif'] }
-            }}
-        }
+      tailwind.config = {
+        theme: { extend: {
+          fontFamily: { cinzel:['Cinzel','serif'], sans:['"Plus Jakarta Sans"','sans-serif'] }
+        }}
+      }
     </script>
     <style>
-        .sm{transition:all .3s cubic-bezier(.4,0,.2,1)}
-        ::-webkit-scrollbar{width:6px;height:6px}
-        ::-webkit-scrollbar-track{background:#fafaf9}
-        ::-webkit-scrollbar-thumb{background:#e7e5e4;border-radius:4px}
-        ::-webkit-scrollbar-thumb:hover{background:#ca8a04}
-        .glow{box-shadow:0 4px 20px rgba(202,138,4,.08)}
-        @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-        .fi{animation:fadeIn .25s ease forwards}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        .spin{animation:spin 1s linear infinite}
-        .hide{display:none!important}
+      .sm-t{transition:all .3s cubic-bezier(.4,0,.2,1)}
+      ::-webkit-scrollbar{width:6px;height:6px}
+      ::-webkit-scrollbar-track{background:#fafaf9}
+      ::-webkit-scrollbar-thumb{background:#e7e5e4;border-radius:4px}
+      ::-webkit-scrollbar-thumb:hover{background:#ca8a04}
+      @keyframes spin{to{transform:rotate(360deg)}}
+      .spin{animation:spin 1s linear infinite}
+      @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+      .fi{animation:fi .25s ease forwards}
     </style>
 </head>
-<body class="bg-stone-50 text-stone-800 font-sans min-h-screen flex flex-col antialiased selection:bg-amber-100 selection:text-amber-900">
-<div id="notif-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+<body class="bg-stone-50 text-stone-800 font-sans min-h-screen flex flex-col antialiased">
+
+<!-- NOTIFICAÇÕES -->
+<div id="notifs" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
 
 <!-- LOADING -->
-<div id="screen-loading" class="fixed inset-0 bg-stone-50 flex flex-col items-center justify-center z-40">
-    <svg class="spin w-10 h-10 text-amber-500 mb-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-    <p class="text-xs text-stone-400 font-medium">Conectando ao terreiro...</p>
+<div id="scr-load" class="fixed inset-0 bg-stone-50 flex flex-col items-center justify-center z-40">
+  <svg class="spin w-10 h-10 text-amber-500 mb-4" fill="none" viewBox="0 0 24 24">
+    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+  </svg>
+  <p class="text-xs text-stone-400 font-medium tracking-wide">Conectando ao terreiro...</p>
 </div>
 
 <!-- LOGIN -->
-<div id="screen-login" class="hide min-h-screen flex flex-col justify-center items-center p-4 bg-gradient-to-tr from-stone-100 via-stone-50 to-amber-50/30">
-    <div class="bg-white p-8 rounded-3xl w-full max-w-md border border-stone-200 shadow-xl glow text-center">
-        <div class="flex justify-center mb-4" id="login-logo"></div>
-        <h1 id="login-title" class="font-cinzel text-2xl font-bold tracking-wider text-stone-900 mb-1">Cantinho de Pai José</h1>
-        <p id="login-sub" class="text-xs text-stone-500 font-medium tracking-wide mb-8">Terreiro de Umbanda e Caridade</p>
+<div id="scr-login" class="hidden min-h-screen flex flex-col justify-center items-center p-4 bg-gradient-to-tr from-stone-100 via-stone-50 to-amber-50/30">
+  <div class="bg-white p-8 rounded-3xl w-full max-w-md border border-stone-200 shadow-xl text-center" style="box-shadow:0 4px 20px rgba(202,138,4,.08)">
+    <div id="logo-login" class="flex justify-center mb-4"></div>
+    <h1 id="ttl-login" class="font-cinzel text-2xl font-bold tracking-wider text-stone-900 mb-1">Cantinho de Pai José</h1>
+    <p id="sub-login" class="text-xs text-stone-500 font-medium tracking-wide mb-8">Terreiro de Umbanda e Caridade</p>
 
-        <!-- FORM LOGIN -->
-        <div id="frm-login">
-            <form id="form-login" class="space-y-5 text-left">
-                <div><label class="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1">E-mail</label>
-                    <input type="email" id="inp-email" required autocomplete="email" placeholder="seuemail@exemplo.com"
-                        class="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-stone-900 placeholder-stone-400 sm"></div>
-                <div><label class="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1">Senha</label>
-                    <input type="password" id="inp-pass" required autocomplete="current-password" placeholder="••••••••"
-                        class="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-stone-900 placeholder-stone-400 sm"></div>
-                <button type="submit" id="btn-login" class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold rounded-xl tracking-wider uppercase shadow-md sm flex justify-center items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14"/></svg>
-                    Entrar na Corrente
-                </button>
-            </form>
-            <button onclick="showForgot()" class="mt-4 w-full text-xs text-amber-700 hover:text-amber-900 font-semibold focus:outline-none">Esqueci minha senha</button>
+    <!-- form login -->
+    <div id="blk-login">
+      <form id="form-login" class="space-y-5 text-left">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1">E-mail</label>
+          <input type="email" id="inp-email" required autocomplete="email" placeholder="seuemail@exemplo.com"
+            class="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-stone-900 placeholder-stone-400 sm-t">
         </div>
-
-        <!-- FORM ESQUECI SENHA -->
-        <div id="frm-forgot" class="hide text-left">
-            <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">Digite seu e-mail para receber o link de redefinição de senha.</div>
-            <form id="form-forgot" class="space-y-4">
-                <div><label class="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1">E-mail cadastrado</label>
-                    <input type="email" id="inp-forgot-email" required placeholder="seuemail@exemplo.com"
-                        class="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-stone-900 placeholder-stone-400"></div>
-                <button type="submit" class="w-full py-3 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl uppercase tracking-wider sm">Enviar Link de Redefinição</button>
-            </form>
-            <button onclick="showLogin()" class="mt-4 w-full text-xs text-stone-500 hover:text-stone-700 font-semibold">← Voltar ao login</button>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1">Senha</label>
+          <input type="password" id="inp-pass" required autocomplete="current-password" placeholder="••••••••"
+            class="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-stone-900 placeholder-stone-400 sm-t">
         </div>
+        <button type="submit" id="btn-login"
+          class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold rounded-xl tracking-wider uppercase shadow-md sm-t flex justify-center items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14"/>
+          </svg>
+          Entrar na Corrente
+        </button>
+      </form>
+      <button onclick="showForgot()" class="mt-5 w-full text-xs text-amber-700 hover:text-amber-900 font-semibold focus:outline-none">
+        Esqueci minha senha
+      </button>
     </div>
+
+    <!-- form esqueci senha -->
+    <div id="blk-forgot" class="hidden text-left">
+      <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 leading-relaxed">
+        Digite seu e-mail cadastrado. Você receberá um link para criar uma nova senha.
+      </div>
+      <form id="form-forgot" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1">E-mail cadastrado</label>
+          <input type="email" id="inp-frg" required placeholder="seuemail@exemplo.com"
+            class="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-stone-900 placeholder-stone-400">
+        </div>
+        <button type="submit" class="w-full py-3 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl uppercase tracking-wider sm-t">
+          Enviar Link de Redefinição
+        </button>
+      </form>
+      <button onclick="showLogin()" class="mt-4 w-full text-xs text-stone-500 hover:text-stone-700 font-semibold">
+        ← Voltar ao login
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- APP -->
-<div id="screen-app" class="hide flex-1 flex flex-col lg:flex-row min-h-screen">
-    <aside class="w-full lg:w-72 bg-white flex flex-col border-r border-stone-200 shrink-0 shadow-sm">
-        <div class="p-6 border-b border-stone-100 flex items-center gap-4">
-            <div id="sb-logo" class="p-1 rounded-full border border-amber-500/20"></div>
-            <div><h2 id="sb-title" class="font-cinzel text-md font-bold text-stone-900 tracking-wide">Pai José</h2>
-                <p id="sb-sub" class="text-xs text-stone-500">Terreiro de Umbanda</p></div>
-        </div>
-        <div class="px-6 py-4 bg-stone-50/50 border-b border-stone-100 flex items-center justify-between">
-            <div class="min-w-0 flex-1 pr-2">
-                <span id="ui-name" class="block font-bold text-sm text-stone-800 truncate">—</span>
-                <span id="ui-role" class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-500 text-stone-950 mt-1">—</span>
-            </div>
-            <button onclick="logout()" title="Sair" class="p-2 bg-stone-100 hover:bg-red-50 hover:text-red-600 rounded-xl text-stone-500 sm">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"/></svg>
-            </button>
-        </div>
-        <nav id="nav-tabs" class="flex-1 p-4 space-y-1 overflow-y-auto"></nav>
-        <div class="p-4 border-t border-stone-100">
-            <button onclick="exportBackup()" class="w-full py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl uppercase sm flex items-center justify-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                Exportar Backup JSON
-            </button>
-        </div>
-    </aside>
-    <main class="flex-1 flex flex-col min-w-0 bg-stone-50/35">
-        <header class="lg:hidden bg-white p-4 border-b border-stone-200 flex justify-between items-center">
-            <div class="flex items-center gap-3"><div id="mob-logo"></div><span class="font-cinzel font-bold text-stone-900">Pai José</span></div>
-            <div class="flex items-center gap-2">
-                <span id="mob-role" class="text-[10px] font-bold bg-amber-500 text-stone-950 px-2 py-0.5 rounded uppercase">—</span>
-                <button onclick="logout()" class="p-1.5 bg-stone-100 rounded-xl"><svg class="w-4 h-4 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"/></svg></button>
-            </div>
-        </header>
-        <div id="content" class="flex-1 p-4 lg:p-8 overflow-y-auto"></div>
-    </main>
+<div id="scr-app" class="hidden flex-1 flex flex-col lg:flex-row min-h-screen">
+
+  <!-- SIDEBAR -->
+  <aside class="w-full lg:w-72 bg-white flex flex-col border-r border-stone-200 shrink-0 shadow-sm">
+    <div class="p-6 border-b border-stone-100 flex items-center gap-4">
+      <div id="logo-sb" class="p-1 rounded-full border border-amber-500/20"></div>
+      <div>
+        <h2 id="sb-title" class="font-cinzel text-md font-bold text-stone-900 tracking-wide">Pai José</h2>
+        <p id="sb-sub" class="text-xs text-stone-500">Terreiro de Umbanda</p>
+      </div>
+    </div>
+    <div class="px-6 py-4 bg-stone-50/50 border-b border-stone-100 flex items-center justify-between">
+      <div class="min-w-0 flex-1 pr-2">
+        <span id="ui-name" class="block font-bold text-sm text-stone-800 truncate">—</span>
+        <span id="ui-role" class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-500 text-stone-950 mt-1">—</span>
+      </div>
+      <button onclick="doLogout()" title="Sair"
+        class="p-2 bg-stone-100 hover:bg-red-50 hover:text-red-600 rounded-xl text-stone-500 sm-t">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"/>
+        </svg>
+      </button>
+    </div>
+    <nav id="nav" class="flex-1 p-4 space-y-1 overflow-y-auto"></nav>
+    <div class="p-4 border-t border-stone-100">
+      <button onclick="exportBackup()"
+        class="w-full py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl uppercase sm-t flex items-center justify-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+        </svg>
+        Exportar Backup JSON
+      </button>
+    </div>
+  </aside>
+
+  <!-- CONTEÚDO -->
+  <main class="flex-1 flex flex-col min-w-0 bg-stone-50/35">
+    <header class="lg:hidden bg-white p-4 border-b border-stone-200 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div id="logo-mob"></div>
+        <span class="font-cinzel font-bold text-stone-900">Pai José</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="mob-role" class="text-[10px] font-bold bg-amber-500 text-stone-950 px-2 py-0.5 rounded uppercase">—</span>
+        <button onclick="doLogout()" class="p-1.5 bg-stone-100 rounded-xl">
+          <svg class="w-4 h-4 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+    <div id="content" class="flex-1 p-4 lg:p-8 overflow-y-auto"></div>
+  </main>
 </div>
 
 <!-- MODAL -->
-<div id="modal-overlay" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hide">
-    <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-stone-200">
-        <div class="bg-stone-50 border-b border-stone-200 px-6 py-4 flex justify-between items-center">
-            <h3 id="modal-title" class="font-cinzel text-md font-bold text-stone-900">—</h3>
-            <button onclick="closeModal()" class="text-stone-400 hover:text-stone-700 p-1.5 hover:bg-stone-100 rounded-xl">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-        </div>
-        <div id="modal-body" class="p-6 max-h-[75vh] overflow-y-auto"></div>
+<div id="modal-wrap" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-stone-200">
+    <div class="bg-stone-50 border-b border-stone-200 px-6 py-4 flex justify-between items-center">
+      <h3 id="modal-title" class="font-cinzel text-md font-bold text-stone-900">—</h3>
+      <button onclick="closeModal()" class="text-stone-400 hover:text-stone-700 p-1.5 hover:bg-stone-100 rounded-xl">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
     </div>
+    <div id="modal-body" class="p-6 max-h-[75vh] overflow-y-auto"></div>
+  </div>
 </div>
-<script>
-// ════════════════════════════════════════════════════
-// ESTADO GLOBAL
-// ════════════════════════════════════════════════════
-const S = {
-    me: null, authUser: null, activeTab: 'dashboard', config: {},
-    users:[], transactions:[], finCategories:[], groups:[],
-    stock:[], stockCategories:[], freezers:[], foods:[],
-    caixotes:[], fabrics:[], schedule:[], notices:[], presencas:[], logs:[],
-    _unsubs:[]
+
+<!-- FIREBASE SDK -->
+<script type="module">
+import { initializeApp }                        from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut,
+         sendPasswordResetEmail, updatePassword,
+         EmailAuthProvider, reauthenticateWithCredential,
+         onAuthStateChanged }                   from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, addDoc,
+         updateDoc, deleteDoc, collection,
+         onSnapshot, serverTimestamp,
+         writeBatch, query, orderBy, limit }    from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+
+// ══════════════════════════════════════════════════════
+// COLE AQUI AS CREDENCIAIS DO SEU PROJETO FIREBASE
+// Console: https://console.firebase.google.com
+// Configurações do projeto → Seus apps → </> Web
+// ══════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "COLE_AQUI_SUA_API_KEY",
+  authDomain:        "COLE_AQUI.firebaseapp.com",
+  projectId:         "COLE_AQUI_SEU_PROJECT_ID",
+  storageBucket:     "COLE_AQUI.appspot.com",
+  messagingSenderId: "COLE_AQUI",
+  appId:             "COLE_AQUI_SEU_APP_ID"
 };
-const fb  = () => window._fb;
-const db  = () => fb().db;
-const au  = () => fb().auth;
-const col = n  => fb().collection(db(), n);
-const ref = (n,id) => fb().doc(db(), n, id);
 
-// ════════════════════════════════════════════════════
-// BOOT
-// ════════════════════════════════════════════════════
-window.addEventListener('firebase-ready', () => {
-    updateLogos();
-    fb().onAuthStateChanged(au(), async user => {
-        if (user) {
-            S.authUser = user;
-            const snap = await fb().getDoc(ref('users', user.uid));
-            if (snap.exists()) {
-                S.me = { id: snap.id, ...snap.data() };
-                enterApp();
-            } else {
-                await fb().signOut(au());
-            }
-        } else {
-            S.me = null; S.authUser = null;
-            S._unsubs.forEach(u => u && u()); S._unsubs = [];
-            show('screen-login'); hide2('screen-loading'); hide2('screen-app');
-            loadPublicConfig();
-        }
-    });
-});
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
 
-async function loadPublicConfig() {
-    try {
-        const s = await fb().getDoc(ref('config','main'));
-        if (s.exists()) {
-            const d = s.data();
-            document.getElementById('login-title').innerText = d.terreiroName || 'Cantinho de Pai José';
-            document.getElementById('login-sub').innerText   = d.subtitle    || 'Terreiro de Umbanda e Caridade';
-            S.config = d; updateLogos();
-        }
-    } catch(_) {}
+window._FB = {
+  auth, db,
+  signInWithEmailAndPassword, signOut,
+  sendPasswordResetEmail, updatePassword,
+  EmailAuthProvider, reauthenticateWithCredential,
+  onAuthStateChanged,
+  doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
+  collection, onSnapshot, serverTimestamp,
+  writeBatch, query, orderBy, limit
+};
+window.dispatchEvent(new Event('fb-ready'));
+</script>
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════════════
+// ESTADO GLOBAL
+// ══════════════════════════════════════════════════════
+const S = {
+  me: null, authUser: null, tab: 'dashboard', cfg: {},
+  users:[], stock:[], stockCats:[], freezers:[], foods:[],
+  caixotes:[], fabrics:[], schedule:[], notices:[], presencas:[], logs:[],
+  _uns: []
+};
+
+// Atalhos Firebase
+const FB  = () => window._FB;
+const db  = () => FB().db;
+const au  = () => FB().auth;
+const col = n  => FB().collection(db(), n);
+const ref = (n, id) => FB().doc(db(), n, id);
+const ts  = ()  => FB().serverTimestamp();
+
+// ══════════════════════════════════════════════════════
+// UTILITÁRIOS DOM
+// ══════════════════════════════════════════════════════
+const $  = id => document.getElementById(id);
+function showEl(id)  { const e=$('scr-'+id); if(e){e.classList.remove('hidden');} }
+function hideEl(id)  { const e=$('scr-'+id); if(e){e.classList.add('hidden');} }
+function showBlk(id) { const e=$(id); if(e){e.classList.remove('hidden');} }
+function hideBlk(id) { const e=$(id); if(e){e.classList.add('hidden');} }
+
+// ══════════════════════════════════════════════════════
+// NOTIFICAÇÕES
+// ══════════════════════════════════════════════════════
+function notif(title, msg, type) {
+  const c = $('notifs'); if (!c) return;
+  const id = 'nf'+Date.now();
+  const bdr = type==='error'?'border-red-500/40':type==='success'?'border-amber-500/30':'border-stone-700';
+  const ico = type==='error'?'text-red-400':'text-amber-500';
+  const el  = document.createElement('div');
+  el.id = id;
+  el.className = `bg-stone-900 border ${bdr} text-white p-4 rounded-2xl shadow-xl flex items-start gap-3 sm-t opacity-0 translate-x-8 pointer-events-auto max-w-sm w-full`;
+  el.innerHTML = `<div class="shrink-0 mt-0.5 ${ico}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><div class="flex-1"><p class="font-bold text-sm text-stone-100">${title}</p>${msg?`<p class="text-xs text-stone-300 mt-1">${msg}</p>`:''}</div><button onclick="document.getElementById('${id}')?.remove()" class="text-stone-400 hover:text-white shrink-0 text-lg leading-none">×</button>`;
+  c.appendChild(el);
+  setTimeout(()=>{ el.classList.remove('opacity-0','translate-x-8'); }, 20);
+  setTimeout(()=>{ el.classList.add('opacity-0','translate-x-8'); setTimeout(()=>el.remove(),300); }, 5000);
 }
 
-function show(id)  { document.getElementById(id)?.classList.remove('hide'); }
-function hide2(id) { document.getElementById(id)?.classList.add('hide'); }
-
-// ════════════════════════════════════════════════════
-// LOGIN / LOGOUT / SENHA
-// ════════════════════════════════════════════════════
-document.getElementById('form-login').addEventListener('submit', async e => {
-    e.preventDefault();
-    const email = document.getElementById('inp-email').value.trim();
-    const pass  = document.getElementById('inp-pass').value;
-    const btn   = document.getElementById('btn-login');
-    btn.disabled = true;
-    btn.innerHTML = '<svg class="spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Entrando...';
-    try {
-        await fb().signInWithEmailAndPassword(au(), email, pass);
-    } catch(err) {
-        const msgs = {'auth/user-not-found':'E-mail não cadastrado.','auth/wrong-password':'Senha incorreta.','auth/invalid-credential':'E-mail ou senha incorretos.','auth/too-many-requests':'Muitas tentativas. Aguarde.'};
-        notif('Acesso Negado', msgs[err.code] || err.message, 'error');
-        btn.disabled = false;
-        btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14"/></svg> Entrar na Corrente';
-    }
-});
-
-document.getElementById('form-forgot').addEventListener('submit', async e => {
-    e.preventDefault();
-    const email = document.getElementById('inp-forgot-email').value.trim();
-    try {
-        await fb().sendPasswordResetEmail(au(), email);
-        notif('E-mail Enviado', 'Verifique sua caixa de entrada.', 'success');
-        showLogin();
-    } catch(err) {
-        notif('Erro', err.code === 'auth/user-not-found' ? 'E-mail não encontrado.' : err.message, 'error');
-    }
-});
-
-function showForgot() { hide2('frm-login'); show('frm-forgot'); }
-function showLogin()  { hide2('frm-forgot'); show('frm-login'); }
-
-async function logout() {
-    await addLog('Saiu do sistema');
-    await fb().signOut(au());
-    notif('Até logo', 'Que Pai José guie seus passos.', 'info');
+// ══════════════════════════════════════════════════════
+// MODAL
+// ══════════════════════════════════════════════════════
+function openModal(title, body) {
+  $('modal-title').innerText = title;
+  $('modal-body').innerHTML  = body;
+  $('modal-wrap').classList.remove('hidden');
 }
-
-function openChangePwdModal() {
-    openModal('Alterar Minha Senha', `
-        <form onsubmit="handleChangePwd(event)" class="space-y-4 text-xs">
-            <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800">Por segurança, confirme sua senha atual antes de criar a nova.</div>
-            <div><label class="block font-bold text-stone-500 uppercase mb-1">Senha Atual</label>
-                <input type="password" id="pwd-cur" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-            <div><label class="block font-bold text-stone-500 uppercase mb-1">Nova Senha</label>
-                <input type="password" id="pwd-new" required minlength="6" placeholder="Mínimo 6 caracteres" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-            <div><label class="block font-bold text-stone-500 uppercase mb-1">Confirmar Nova Senha</label>
-                <input type="password" id="pwd-conf" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-            <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
-                <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
-                <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Alterar Senha</button>
-            </div>
-        </form>`);
+function closeModal() {
+  $('modal-wrap').classList.add('hidden');
+  $('modal-body').innerHTML = '';
 }
+$('modal-wrap').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
 
-async function handleChangePwd(e) {
-    e.preventDefault();
-    const cur  = document.getElementById('pwd-cur').value;
-    const nw   = document.getElementById('pwd-new').value;
-    const conf = document.getElementById('pwd-conf').value;
-    if (nw !== conf) { notif('Erro','As senhas não conferem.','error'); return; }
-    if (nw.length < 6) { notif('Erro','Mínimo 6 caracteres.','error'); return; }
-    try {
-        const cred = fb().EmailAuthProvider.credential(S.authUser.email, cur);
-        await fb().reauthenticateWithCredential(S.authUser, cred);
-        await fb().updatePassword(S.authUser, nw);
-        await addLog('Alterou a própria senha');
-        closeModal();
-        notif('Senha Alterada', 'Nova senha ativa com sucesso!', 'success');
-    } catch(err) {
-        const msgs = {'auth/wrong-password':'Senha atual incorreta.','auth/weak-password':'Senha muito fraca.'};
-        notif('Erro', msgs[err.code] || err.message, 'error');
-    }
-}
-
-// ════════════════════════════════════════════════════
-// ENTRAR NO APP
-// ════════════════════════════════════════════════════
-async function enterApp() {
-    hide2('screen-loading'); hide2('screen-login'); show('screen-app');
-    document.getElementById('ui-name').innerText  = S.me.name  || '—';
-    document.getElementById('ui-role').innerText  = S.me.cargo || '—';
-    document.getElementById('mob-role').innerText = S.me.cargo || '—';
-    await loadConfig();
-    startListeners();
-    buildNav();
-    const tabs = S.me.allowedTabs || ['hub'];
-    switchTab(tabs.includes('dashboard') ? 'dashboard' : tabs[0]);
-    await addLog('Entrou no sistema');
-    notif('Saravá, axé!', `Bem-vindo(a), ${S.me.name}!`, 'success');
-}
-
-async function loadConfig() {
-    try {
-        const s = await fb().getDoc(ref('config','main'));
-        S.config = s.exists() ? s.data() : { terreiroName:'Cantinho de Pai José da Bahia', subtitle:'Terreiro de Umbanda e Caridade', pixKey:'', logoUrl:'' };
-        document.getElementById('sb-title').innerText = S.config.terreiroName || 'Pai José';
-        document.getElementById('sb-sub').innerText   = S.config.subtitle     || 'Terreiro de Umbanda';
-        updateLogos();
-    } catch(e) { console.error(e); }
-}
-
-// ════════════════════════════════════════════════════
-// LISTENERS FIRESTORE TEMPO REAL
-// ════════════════════════════════════════════════════
-function startListeners() {
-    S._unsubs.forEach(u => u && u()); S._unsubs = [];
-    const listen = (name, key) => {
-        const u = fb().onSnapshot(col(name), snap => {
-            S[key] = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-            renderCurrentTab();
-        }, err => console.warn(name, err));
-        S._unsubs.push(u);
-    };
-    listen('users','users'); listen('transactions','transactions');
-    listen('finCategories','finCategories'); listen('contributionGroups','groups');
-    listen('stock','stock'); listen('stockCategories','stockCategories');
-    listen('freezers','freezers'); listen('foods','foods');
-    listen('caixotes','caixotes'); listen('fabrics','fabrics');
-    listen('schedule','schedule'); listen('notices','notices');
-    listen('presencas','presencas');
-    // Config live
-    S._unsubs.push(fb().onSnapshot(ref('config','main'), s => {
-        if (s.exists()) { S.config = s.data(); document.getElementById('sb-title').innerText = S.config.terreiroName||'Pai José'; document.getElementById('sb-sub').innerText = S.config.subtitle||''; updateLogos(); }
-    }));
-    // Logs só admin
-    if (S.me?.cargo === 'ADMIN') {
-        S._unsubs.push(fb().onSnapshot(fb().query(col('logs'), fb().orderBy('ts','desc'), fb().limit(100)), s => { S.logs = s.docs.map(d=>({id:d.id,...d.data()})); }));
-    }
-}
-
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // HELPERS FIRESTORE
-// ════════════════════════════════════════════════════
-const ts = () => fb().serverTimestamp();
-async function fsAdd(c, data)       { return fb().addDoc(col(c), {...data, ts:ts()}); }
-async function fsSet(c, id, data)   { return fb().setDoc(ref(c,id), {...data, ts:ts()}, {merge:true}); }
-async function fsUpd(c, id, data)   { return fb().updateDoc(ref(c,id), {...data, ts:ts()}); }
-async function fsDel(c, id)         { return fb().deleteDoc(ref(c,id)); }
+// ══════════════════════════════════════════════════════
+async function fsAdd(c, data)     { return FB().addDoc(col(c), {...data, _ts:ts()}); }
+async function fsSet(c, id, data) { return FB().setDoc(ref(c,id), {...data, _ts:ts()}, {merge:true}); }
+async function fsUpd(c, id, data) { return FB().updateDoc(ref(c,id), {...data, _ts:ts()}); }
+async function fsDel(c, id)       { return FB().deleteDoc(ref(c,id)); }
+
 async function addLog(action) {
-    if (!S.authUser) return;
-    try { await fb().addDoc(col('logs'), { user:S.me?.name||S.authUser.email, cargo:S.me?.cargo||'—', action, ts:ts() }); } catch(_){}
+  if (!S.authUser) return;
+  try { await FB().addDoc(col('logs'), {user:S.me?.name||S.authUser.email, cargo:S.me?.cargo||'—', action, _ts:ts()}); } catch(_){}
 }
 
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // LOGO
-// ════════════════════════════════════════════════════
-function logoHtml(w=120,h=120) {
-    if (S.config?.logoUrl?.trim())
-        return `<img src="${S.config.logoUrl}" width="${w}" height="${h}" class="object-contain rounded-full border border-amber-500/20 shadow-sm" onerror="this.style.display='none'">`;
-    return `<svg width="${w}" height="${h}" viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" fill="none" stroke="#ca8a04" stroke-width="2"/><circle cx="60" cy="60" r="48" fill="none" stroke="#292524" stroke-width="4"/><line x1="60" y1="28" x2="60" y2="92" stroke="#292524" stroke-width="6" stroke-linecap="round"/><line x1="28" y1="60" x2="92" y2="60" stroke="#292524" stroke-width="6" stroke-linecap="round"/><polygon points="40,36 42,41 47,41 43,44 45,49 40,46 35,49 37,44 33,41 38,41" fill="#ca8a04"/><polygon points="80,84 82,89 87,89 83,92 85,97 80,94 75,97 77,92 73,89 78,89" fill="#ca8a04"/></svg>`;
+// ══════════════════════════════════════════════════════
+function logoSVG(w,h) {
+  if (S.cfg?.logoUrl?.trim())
+    return `<img src="${S.cfg.logoUrl}" width="${w}" height="${h}" class="object-contain rounded-full border border-amber-500/20 shadow-sm" onerror="this.style.display='none'">`;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" fill="none" stroke="#ca8a04" stroke-width="2"/><circle cx="60" cy="60" r="48" fill="none" stroke="#292524" stroke-width="4"/><line x1="60" y1="28" x2="60" y2="92" stroke="#292524" stroke-width="6" stroke-linecap="round"/><line x1="28" y1="60" x2="92" y2="60" stroke="#292524" stroke-width="6" stroke-linecap="round"/><polygon points="40,36 42,41 47,41 43,44 45,49 40,46 35,49 37,44 33,41 38,41" fill="#ca8a04"/><polygon points="80,84 82,89 87,89 83,92 85,97 80,94 75,97 77,92 73,89 78,89" fill="#ca8a04"/></svg>`;
 }
 function updateLogos() {
-    [['login-logo',120],['sb-logo',44],['mob-logo',32]].forEach(([id,s]) => { const el=document.getElementById(id); if(el) el.innerHTML=logoHtml(s,s); });
+  [['logo-login',120],['logo-sb',44],['logo-mob',32]].forEach(([id,s])=>{ const el=$(id); if(el) el.innerHTML=logoSVG(s,s); });
 }
 
-// ════════════════════════════════════════════════════
-// RBAC
-// ════════════════════════════════════════════════════
-function canRead(u,tab)  { if(!u)return false; if(u.cargo==='ADMIN')return true; if(['PRESIDENTE','TESOUREIRO'].includes(u.cargo)&&tab!=='admin')return true; return(u.allowedTabs||[]).includes(tab); }
-function canWrite(u,tab) { if(!u)return false; if(u.cargo==='ADMIN')return true; if(['PRESIDENTE','TESOUREIRO'].includes(u.cargo)&&tab!=='admin')return true; if(u.cargo==='SECRETARIA'&&['secretaria','mediuns','presenca'].includes(tab))return true; const tabs=u.allowedTabs||[]; if(u.cargo==='CAMBONAGEM'&&tab==='estoque'&&tabs.includes(tab))return true; if(u.cargo==='COZINHA'&&tab==='cozinha'&&tabs.includes(tab))return true; if(u.cargo==='TECIDOS'&&tab==='tecidos'&&tabs.includes(tab))return true; return false; }
-function isMgr(u) { return ['ADMIN','PRESIDENTE','TESOUREIRO'].includes(u?.cargo); }
+// ══════════════════════════════════════════════════════
+// RBAC — sem TESOUREIRO, sem FINANCEIRO
+// ══════════════════════════════════════════════════════
+const CARGOS = ['ADMIN','PRESIDENTE','SECRETARIA','CAMBONAGEM','COZINHA','TECIDOS','MEDIUM'];
 
-// ════════════════════════════════════════════════════
-// NOTIFICAÇÕES
-// ════════════════════════════════════════════════════
-function notif(title, msg, type='info') {
-    const c = document.getElementById('notif-container'); if(!c) return;
-    const id = 'n'+Date.now();
-    const border = type==='error'?'border-red-500/40':type==='success'?'border-amber-500/30':'border-stone-700';
-    const icon   = type==='error'?'text-red-400':'text-amber-500';
-    const el = document.createElement('div');
-    el.id = id;
-    el.className = `bg-stone-900 border ${border} text-white p-4 rounded-2xl shadow-xl flex items-start gap-3 sm opacity-0 translate-x-8 pointer-events-auto max-w-sm w-full`;
-    el.innerHTML = `<div class="shrink-0 mt-0.5 ${icon}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><div class="flex-1"><p class="font-bold text-sm text-stone-100">${title}</p>${msg?`<p class="text-xs text-stone-300 mt-1 leading-relaxed">${msg}</p>`:''}</div><button onclick="dimNotif('${id}')" class="text-stone-400 hover:text-white shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>`;
-    c.appendChild(el);
-    setTimeout(()=>{ el.classList.remove('opacity-0','translate-x-8'); },10);
-    setTimeout(()=>dimNotif(id), 5000);
+function canRead(u, tab) {
+  if (!u) return false;
+  if (u.cargo === 'ADMIN') return true;
+  if (u.cargo === 'PRESIDENTE' && tab !== 'admin') return true;
+  return (u.allowedTabs||[]).includes(tab);
 }
-function dimNotif(id) { const el=document.getElementById(id); if(el){el.classList.add('opacity-0','translate-x-8');setTimeout(()=>el.remove(),300);} }
+function canWrite(u, tab) {
+  if (!u) return false;
+  if (u.cargo === 'ADMIN') return true;
+  if (u.cargo === 'PRESIDENTE' && tab !== 'admin') return true;
+  if (u.cargo === 'SECRETARIA' && ['secretaria','mediuns','presenca'].includes(tab)) return true;
+  const tabs = u.allowedTabs||[];
+  if (u.cargo==='CAMBONAGEM' && tab==='estoque'  && tabs.includes(tab)) return true;
+  if (u.cargo==='COZINHA'    && tab==='cozinha'  && tabs.includes(tab)) return true;
+  if (u.cargo==='TECIDOS'    && tab==='tecidos'  && tabs.includes(tab)) return true;
+  return false;
+}
+function isMgr(u) { return ['ADMIN','PRESIDENTE'].includes(u?.cargo); }
 
-// ════════════════════════════════════════════════════
-// MODAL
-// ════════════════════════════════════════════════════
-function openModal(title, body) { document.getElementById('modal-title').innerText=title; document.getElementById('modal-body').innerHTML=body; show('modal-overlay'); }
-function closeModal() { hide2('modal-overlay'); document.getElementById('modal-body').innerHTML=''; }
-document.getElementById('modal-overlay').addEventListener('click', e=>{ if(e.target===e.currentTarget)closeModal(); });
-
-// ════════════════════════════════════════════════════
-// NAVEGAÇÃO
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// ABAS — SEM FINANCEIRO
+// ══════════════════════════════════════════════════════
 const TABS = {
-    dashboard:  {label:'Início / Dashboard',    icon:'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'},
-    financeiro: {label:'Financeiro',            icon:'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z'},
-    estoque:    {label:'Almoxarifado',          icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'},
-    cozinha:    {label:'Cozinha & Despensa',    icon:'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'},
-    tecidos:    {label:'Tecidos & Caixotes',    icon:'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10'},
-    secretaria: {label:'Secretaria / Alertas',  icon:'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'},
-    mediuns:    {label:'Corpo de Médiuns',      icon:'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z'},
-    presenca:   {label:'Lista de Presença',     icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'},
-    hub:        {label:'Área do Médium',        icon:'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'},
-    admin:      {label:'Administração',         icon:'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z'}
+  dashboard:  { label:'Início / Dashboard',   icon:'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+  estoque:    { label:'Almoxarifado',         icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
+  cozinha:    { label:'Cozinha & Despensa',   icon:'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
+  tecidos:    { label:'Tecidos & Caixotes',   icon:'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
+  secretaria: { label:'Secretaria / Alertas', icon:'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
+  mediuns:    { label:'Corpo de Médiuns',     icon:'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+  presenca:   { label:'Lista de Presença',    icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
+  hub:        { label:'Área do Médium',       icon:'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+  admin:      { label:'Administração',        icon:'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' }
 };
+
 function buildNav() {
-    const nav = document.getElementById('nav-tabs'); nav.innerHTML='';
-    Object.keys(TABS).forEach(k => {
-        if (!canRead(S.me,k)) return;
-        const t = TABS[k];
-        const btn = document.createElement('button');
-        btn.id = `nb-${k}`; btn.onclick = ()=>switchTab(k);
-        btn.className='w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-left text-stone-600 hover:bg-stone-100 sm group';
-        btn.innerHTML=`<svg class="w-5 h-5 shrink-0 text-stone-400 group-hover:text-amber-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${t.icon}"/></svg><span>${t.label}</span>`;
-        nav.appendChild(btn);
-    });
+  const nav = $('nav'); nav.innerHTML = '';
+  Object.keys(TABS).forEach(k => {
+    if (!canRead(S.me, k)) return;
+    const t = TABS[k];
+    const btn = document.createElement('button');
+    btn.id = 'nb-'+k; btn.onclick = () => switchTab(k);
+    btn.className = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-left text-stone-600 hover:bg-stone-100 sm-t group';
+    btn.innerHTML = `<svg class="w-5 h-5 shrink-0 text-stone-400 group-hover:text-amber-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${t.icon}"/></svg><span>${t.label}</span>`;
+    nav.appendChild(btn);
+  });
 }
+
 function switchTab(k) {
-    S.activeTab = k;
-    Object.keys(TABS).forEach(t => {
-        const b=document.getElementById(`nb-${t}`); if(!b) return;
-        if(t===k){ b.className='w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-left bg-amber-500/10 text-amber-800 border-l-4 border-amber-500 sm'; b.querySelector('svg').className='w-5 h-5 shrink-0 text-amber-600'; }
-        else     { b.className='w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-left text-stone-600 hover:bg-stone-100 sm group'; b.querySelector('svg').className='w-5 h-5 shrink-0 text-stone-400 group-hover:text-amber-600 transition-colors'; }
-    });
-    renderCurrentTab();
+  S.tab = k;
+  Object.keys(TABS).forEach(t => {
+    const b = $('nb-'+t); if (!b) return;
+    if (t===k) { b.className='w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-left bg-amber-500/10 text-amber-800 border-l-4 border-amber-500 sm-t'; b.querySelector('svg').className='w-5 h-5 shrink-0 text-amber-600'; }
+    else        { b.className='w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-left text-stone-600 hover:bg-stone-100 sm-t group'; b.querySelector('svg').className='w-5 h-5 shrink-0 text-stone-400 group-hover:text-amber-600 transition-colors'; }
+  });
+  render();
 }
-function renderCurrentTab() {
-    const ws=document.getElementById('content'); if(!ws)return; ws.innerHTML='';
-    const hw=canWrite(S.me,S.activeTab);
-    const map={dashboard:rDash,financeiro:rFin,estoque:rEstoque,cozinha:rCozinha,tecidos:rTecidos,secretaria:rSec,mediuns:rMediuns,presenca:rPresenca,hub:rHub,admin:rAdmin};
-    (map[S.activeTab]||((w)=>{w.innerHTML='<p class="text-stone-400 p-8 text-center">Em desenvolvimento.</p>'}))(ws,hw);
+
+function render() {
+  const ws = $('content'); if (!ws) return; ws.innerHTML = '';
+  const hw = canWrite(S.me, S.tab);
+  const map = { dashboard:rDash, estoque:rEstoque, cozinha:rCozinha, tecidos:rTecidos, secretaria:rSec, mediuns:rMediuns, presenca:rPresenca, hub:rHub, admin:rAdmin };
+  (map[S.tab] || (w=>{ w.innerHTML='<p class="text-stone-400 p-8 text-center">Em desenvolvimento.</p>'; }))(ws, hw);
+}
+
+// ══════════════════════════════════════════════════════
+// BOOT — aguarda Firebase carregar
+// ══════════════════════════════════════════════════════
+window.addEventListener('fb-ready', () => {
+  updateLogos();
+  FB().onAuthStateChanged(au(), async authUser => {
+    if (authUser) {
+      S.authUser = authUser;
+      try {
+        const snap = await FB().getDoc(ref('users', authUser.uid));
+        if (snap.exists()) {
+          S.me = { id: snap.id, ...snap.data() };
+          enterApp();
+        } else {
+          await FB().signOut(au());
+          notif('Perfil não encontrado', 'Contacte o administrador.', 'error');
+          goLogin();
+        }
+      } catch(err) {
+        notif('Erro ao carregar perfil', err.message, 'error');
+        goLogin();
+      }
+    } else {
+      S.me = null; S.authUser = null;
+      S._uns.forEach(u=>u&&u()); S._uns = [];
+      goLogin();
+    }
+  });
+});
+
+function goLogin() {
+  hideEl('load'); hideEl('app'); showEl('login');
+  loadPublicCfg();
+}
+
+async function loadPublicCfg() {
+  try {
+    const s = await FB().getDoc(ref('config','main'));
+    if (s.exists()) {
+      S.cfg = s.data();
+      $('ttl-login').innerText = S.cfg.terreiroName || 'Cantinho de Pai José';
+      $('sub-login').innerText = S.cfg.subtitle     || 'Terreiro de Umbanda e Caridade';
+      updateLogos();
+    }
+  } catch(_) {}
+}
+
+// ══════════════════════════════════════════════════════
+// LOGIN / LOGOUT / SENHA
+// ══════════════════════════════════════════════════════
+$('form-login').addEventListener('submit', async e => {
+  e.preventDefault();
+  const email = $('inp-email').value.trim();
+  const pass  = $('inp-pass').value;
+  const btn   = $('btn-login');
+  btn.disabled = true;
+  btn.innerHTML = '<svg class="spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Entrando...';
+  try {
+    await FB().signInWithEmailAndPassword(au(), email, pass);
+    // onAuthStateChanged cuida do resto
+  } catch(err) {
+    const msgs = {
+      'auth/user-not-found':     'E-mail não cadastrado.',
+      'auth/wrong-password':     'Senha incorreta.',
+      'auth/invalid-credential': 'E-mail ou senha incorretos.',
+      'auth/invalid-email':      'E-mail inválido.',
+      'auth/too-many-requests':  'Muitas tentativas. Aguarde alguns minutos.'
+    };
+    notif('Acesso negado', msgs[err.code] || err.message, 'error');
+    btn.disabled = false;
+    btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14"/></svg> Entrar na Corrente';
+  }
+});
+
+$('form-forgot').addEventListener('submit', async e => {
+  e.preventDefault();
+  const email = $('inp-frg').value.trim();
+  try {
+    await FB().sendPasswordResetEmail(au(), email);
+    notif('E-mail enviado!', 'Verifique sua caixa de entrada.', 'success');
+    showLogin();
+  } catch(err) {
+    notif('Erro', err.code==='auth/user-not-found'?'E-mail não encontrado.':err.message, 'error');
+  }
+});
+
+function showForgot() { hideBlk('blk-login'); showBlk('blk-forgot'); }
+function showLogin()  { hideBlk('blk-forgot'); showBlk('blk-login'); }
+
+async function doLogout() {
+  await addLog('Saiu do sistema');
+  await FB().signOut(au());
+  notif('Até logo', 'Que Pai José guie seus passos.', 'info');
+}
+
+// Alterar própria senha
+function openChangePwdModal() {
+  openModal('Alterar Minha Senha', `
+    <form onsubmit="handleChangePwd(event)" class="space-y-4 text-xs">
+      <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800">Por segurança, confirme sua senha atual primeiro.</div>
+      <div><label class="block font-bold text-stone-500 uppercase mb-1">Senha Atual</label><input type="password" id="pc" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+      <div><label class="block font-bold text-stone-500 uppercase mb-1">Nova Senha</label><input type="password" id="pn" required minlength="6" placeholder="Mínimo 6 caracteres" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+      <div><label class="block font-bold text-stone-500 uppercase mb-1">Confirmar Nova Senha</label><input type="password" id="pf" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Alterar</button>
+      </div>
+    </form>`);
+}
+async function handleChangePwd(e) {
+  e.preventDefault();
+  const cur=$('pc').value, nw=$('pn').value, cf=$('pf').value;
+  if (nw!==cf) { notif('Erro','As senhas não conferem.','error'); return; }
+  try {
+    const cred = FB().EmailAuthProvider.credential(S.authUser.email, cur);
+    await FB().reauthenticateWithCredential(S.authUser, cred);
+    await FB().updatePassword(S.authUser, nw);
+    await addLog('Alterou a própria senha');
+    closeModal(); notif('Senha alterada!','Nova senha ativa com sucesso.','success');
+  } catch(err) {
+    const msgs={'auth/wrong-password':'Senha atual incorreta.','auth/weak-password':'Senha muito fraca.'};
+    notif('Erro', msgs[err.code]||err.message, 'error');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// ENTRAR NO APP
+// ══════════════════════════════════════════════════════
+async function enterApp() {
+  hideEl('load'); hideEl('login'); showEl('app');
+  $('ui-name').innerText  = S.me.name  || '—';
+  $('ui-role').innerText  = S.me.cargo || '—';
+  $('mob-role').innerText = S.me.cargo || '—';
+  await loadCfg();
+  startListeners();
+  buildNav();
+  const tabs = S.me.allowedTabs || ['hub'];
+  switchTab(tabs.includes('dashboard') ? 'dashboard' : tabs[0]);
+  await addLog('Entrou no sistema');
+  notif('Saravá, axé!', `Bem-vindo(a), ${S.me.name}!`, 'success');
+}
+
+async function loadCfg() {
+  try {
+    const s = await FB().getDoc(ref('config','main'));
+    S.cfg = s.exists() ? s.data() : { terreiroName:'Cantinho de Pai José da Bahia', subtitle:'Terreiro de Umbanda e Caridade', pixKey:'', logoUrl:'' };
+    $('sb-title').innerText = S.cfg.terreiroName || 'Pai José';
+    $('sb-sub').innerText   = S.cfg.subtitle     || 'Terreiro de Umbanda';
+    updateLogos();
+  } catch(e){ console.error(e); }
+}
+
+// ══════════════════════════════════════════════════════
+// LISTENERS TEMPO REAL
+// ══════════════════════════════════════════════════════
+function startListeners() {
+  S._uns.forEach(u=>u&&u()); S._uns=[];
+  const listen = (name, key) => {
+    const u = FB().onSnapshot(col(name), snap=>{
+      S[key] = snap.docs.map(d=>({id:d.id,...d.data()}));
+      render();
+    }, err=>console.warn(name,err));
+    S._uns.push(u);
+  };
+  listen('users','users'); listen('stock','stock'); listen('stockCategories','stockCats');
+  listen('freezers','freezers'); listen('foods','foods');
+  listen('caixotes','caixotes'); listen('fabrics','fabrics');
+  listen('schedule','schedule'); listen('notices','notices'); listen('presencas','presencas');
+  // Config live
+  S._uns.push(FB().onSnapshot(ref('config','main'), s=>{
+    if(s.exists()){S.cfg=s.data();$('sb-title').innerText=S.cfg.terreiroName||'Pai José';$('sb-sub').innerText=S.cfg.subtitle||'';updateLogos();}
+  }));
+  // Logs só admin
+  if (S.me?.cargo==='ADMIN') {
+    S._uns.push(FB().onSnapshot(
+      FB().query(col('logs'), FB().orderBy('_ts','desc'), FB().limit(80)),
+      s=>{ S.logs=s.docs.map(d=>({id:d.id,...d.data()})); }
+    ));
+  }
 }
 </script>
 <script>
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// HELPERS UI
+// ══════════════════════════════════════════════════════
+function card(icon,label,val,cls,sub) {
+  return `<div class="bg-white p-5 rounded-2xl shadow-sm border border-stone-200 flex items-center justify-between"><div><span class="block text-xs font-semibold text-stone-400 uppercase tracking-wider">${label}</span><span class="text-xl font-extrabold ${cls||'text-stone-900'} block mt-1">${val}</span>${sub?`<span class="block text-[10px] text-stone-400 mt-0.5">${sub}</span>`:''}</div><div class="p-3 rounded-xl bg-stone-50 border border-stone-100 text-lg">${icon}</div></div>`;
+}
+
+// ══════════════════════════════════════════════════════
 // DASHBOARD
-// ════════════════════════════════════════════════════
-function card(icon,label,val,cls='text-stone-900',sub=''){return `<div class="bg-white p-5 rounded-2xl shadow-sm border border-stone-200 flex items-center justify-between"><div><span class="block text-xs font-semibold text-stone-400 uppercase tracking-wider">${label}</span><span class="text-xl font-extrabold ${cls} block mt-1">${val}</span>${sub?`<span class="block text-[10px] text-stone-400 mt-0.5">${sub}</span>`:''}</div><div class="p-3 rounded-xl bg-stone-50 border border-stone-100">${icon}</div></div>`;}
+// ══════════════════════════════════════════════════════
 function rDash(ws) {
-    const saldo = S.transactions.reduce((a,t)=>t.type==='entrada'?a+t.amount:a-t.amount,0);
-    const crit  = S.stock.filter(i=>i.quantity<=i.minQuantity).length;
-    const inad  = S.users.filter(u=>u.duesStatus==='Pendente').length;
-    const mes   = new Date().getMonth()+1;
-    const aniv  = S.users.filter(u=>u.birthday&&parseInt(u.birthday.split('-')[1])===mes).sort((a,b)=>parseInt(a.birthday.split('-')[2])-parseInt(b.birthday.split('-')[2]));
-    const ng    = [...S.schedule].sort((a,b)=>(a.date||'').localeCompare(b.date||''))[0];
-    let cards='';
-    if(canRead(S.me,'financeiro')) cards+=card('💰','Saldo do Caixa',`R$ ${saldo.toFixed(2)}`,saldo>=0?'text-emerald-600':'text-red-600');
-    if(canRead(S.me,'estoque'))    cards+=card('📦','Almoxarifado',`${S.stock.reduce((a,i)=>a+i.quantity,0)} un`,crit>0?'text-red-500':'text-stone-900',crit>0?`${crit} sob mínimo`:'');
-    if(isMgr(S.me))                cards+=card('⚠️','Inadimplentes',`${inad}`,inad>0?'text-red-600':'text-emerald-600');
-    cards+=card('✨','Próxima Gira',ng?.date||'Nenhuma','text-stone-900',ng?.line||'');
-    const giraCard=ng?`<div class="bg-gradient-to-br from-stone-900 to-stone-800 text-white p-6 rounded-2xl border border-amber-500/20 shadow-lg"><span class="inline-block bg-amber-500 text-stone-950 text-[10px] font-bold px-2 py-0.5 rounded-lg uppercase mb-3">Próxima Gira</span><h4 class="font-cinzel text-lg font-bold text-amber-400">${ng.line}</h4><div class="mt-3 space-y-2 text-xs"><p><strong class="text-stone-300">Data/Hora:</strong> ${ng.date} às ${ng.time}</p><p><strong class="text-stone-300">Dirigente:</strong> ${ng.dirigente}</p><p><strong class="text-stone-300">Vestuário:</strong> ${ng.vestuario}</p><p class="mt-2 text-stone-200 italic border-t border-white/10 pt-2">${ng.recomendacoes||''}</p></div></div>`:`<div class="p-6 bg-stone-100 rounded-2xl text-center text-stone-400 text-xs border border-dashed border-stone-200">Nenhuma gira escalada.</div>`;
-    const anivHtml=aniv.length?aniv.map(u=>`<div class="flex items-center gap-2 py-1.5 border-b border-stone-100 last:border-0 text-xs"><span class="font-bold text-amber-700 w-6 shrink-0">${u.birthday.split('-')[2]}</span><span class="text-stone-700">${u.name}</span></div>`).join(''):`<p class="text-xs text-stone-400 text-center py-2">Sem aniversariantes este mês.</p>`;
-    const avHtml=S.notices.length?S.notices.slice(0,6).map(n=>{const b=n.level==='urgente'?'bg-red-50 text-red-700 border-red-200 animate-pulse':n.level==='festividade'?'bg-amber-50 text-amber-700 border-amber-200':'bg-stone-100 text-stone-700 border-stone-200';return `<div class="p-4 rounded-2xl border border-stone-100 bg-white shadow-sm"><div class="flex justify-between items-center mb-2"><span class="px-2 py-0.5 rounded-lg text-[10px] uppercase border font-bold ${b}">${n.level}</span><span class="text-[10px] text-stone-400">${n.date||''}</span></div><h4 class="font-bold text-sm text-stone-900 mb-1">${n.title}</h4><p class="text-xs text-stone-600 leading-relaxed font-light">${n.text}</p></div>`;}).join(''):`<div class="p-6 bg-white border border-dashed border-stone-200 rounded-2xl text-center text-stone-400 text-xs col-span-full">Sem comunicados ativos.</div>`;
-    const logsHtml=S.me.cargo==='ADMIN'&&S.logs.length?`<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm"><h4 class="font-cinzel text-xs font-bold text-stone-900 mb-3 border-b border-stone-100 pb-2 uppercase">Auditoria Recente</h4>${S.logs.slice(0,8).map(l=>`<div class="flex justify-between items-start py-1.5 border-b border-stone-100 last:border-0 text-xs"><div class="truncate pr-2"><span class="font-bold text-amber-700">${l.user||'?'}</span> <span class="text-stone-600 font-light">${l.action||''}</span></div><span class="text-[10px] text-stone-400 whitespace-nowrap shrink-0">${l.ts?.toDate?l.ts.toDate().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}</span></div>`).join('')}</div>`:'';
-    ws.innerHTML=`<div class="mb-6 fi"><h1 class="font-cinzel text-2xl font-bold text-stone-900">Início</h1><p class="text-xs text-stone-500">Bem-vindo(a) à corrente do Cantinho de Pai José da Bahia</p></div><div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 fi">${cards}</div><div class="grid grid-cols-1 lg:grid-cols-3 gap-6"><div class="lg:col-span-1 space-y-6">${giraCard}<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm"><h4 class="font-cinzel text-xs font-bold text-stone-900 mb-3 border-b border-stone-100 pb-2 uppercase">🎂 Aniversariantes do Mês</h4>${anivHtml}</div>${logsHtml}</div><div class="lg:col-span-2"><h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-200 pb-2 mb-4">Quadro de Avisos</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4">${avHtml}</div></div></div>`;
+  const mes   = new Date().getMonth()+1;
+  const crit  = S.stock.filter(i=>i.quantity<=i.minQuantity).length;
+  const aniv  = S.users.filter(u=>u.birthday&&parseInt(u.birthday.split('-')[1])===mes)
+                .sort((a,b)=>parseInt(a.birthday.split('-')[2])-parseInt(b.birthday.split('-')[2]));
+  const ng    = [...S.schedule].sort((a,b)=>(a.date||'').localeCompare(b.date||''))[0];
+
+  let cards = '';
+  if (canRead(S.me,'estoque')) cards += card('📦','Almoxarifado',`${S.stock.reduce((a,i)=>a+i.quantity,0)} un`, crit>0?'text-red-500':'text-stone-900', crit>0?`${crit} itens em estoque baixo`:'');
+  if (isMgr(S.me)) {
+    const inadim = S.users.filter(u=>u.duesStatus==='Pendente').length;
+    cards += card('📋','Contribuições',`${inadim} pendente${inadim!==1?'s':''}`, inadim>0?'text-red-600':'text-emerald-600');
+  }
+  cards += card('✨','Próxima Gira', ng?.date||'Nenhuma','text-stone-900', ng?.line||'');
+  cards += card('👥','Médiuns', `${S.users.length}`, 'text-stone-900');
+
+  const giraCard = ng
+    ? `<div class="bg-gradient-to-br from-stone-900 to-stone-800 text-white p-6 rounded-2xl border border-amber-500/20 shadow-lg">
+         <span class="inline-block bg-amber-500 text-stone-950 text-[10px] font-bold px-2 py-0.5 rounded-lg uppercase mb-3">Próxima Gira</span>
+         <h4 class="font-cinzel text-lg font-bold text-amber-400">${ng.line}</h4>
+         <div class="mt-3 space-y-2 text-xs">
+           <p><strong class="text-stone-300">Data/Hora:</strong> ${ng.date} às ${ng.time}</p>
+           <p><strong class="text-stone-300">Dirigente:</strong> ${ng.dirigente}</p>
+           <p><strong class="text-stone-300">Vestuário:</strong> ${ng.vestuario}</p>
+           <p class="mt-2 text-stone-200 italic border-t border-white/10 pt-2">${ng.recomendacoes||''}</p>
+         </div>
+       </div>`
+    : `<div class="p-6 bg-stone-100 rounded-2xl text-center text-stone-400 text-xs border border-dashed border-stone-200">Nenhuma gira escalada.</div>`;
+
+  const anivHtml = aniv.length
+    ? aniv.map(u=>`<div class="flex items-center gap-2 py-1.5 border-b border-stone-100 last:border-0 text-xs"><span class="font-bold text-amber-700 w-6 shrink-0">${u.birthday.split('-')[2]}</span><span class="text-stone-700">${u.name}</span></div>`).join('')
+    : `<p class="text-xs text-stone-400 text-center py-2">Sem aniversariantes este mês.</p>`;
+
+  const avisosHtml = S.notices.length
+    ? S.notices.slice(0,6).map(n=>{
+        const b = n.level==='urgente'?'bg-red-50 text-red-700 border-red-200 animate-pulse':n.level==='festividade'?'bg-amber-50 text-amber-700 border-amber-200':'bg-stone-100 text-stone-700 border-stone-200';
+        return `<div class="p-4 rounded-2xl border border-stone-100 bg-white shadow-sm"><div class="flex justify-between items-center mb-2"><span class="px-2 py-0.5 rounded-lg text-[10px] uppercase border font-bold ${b}">${n.level}</span><span class="text-[10px] text-stone-400">${n.date||''}</span></div><h4 class="font-bold text-sm text-stone-900 mb-1">${n.title}</h4><p class="text-xs text-stone-600 leading-relaxed font-light">${n.text}</p></div>`;
+      }).join('')
+    : `<div class="p-6 bg-white border border-dashed border-stone-200 rounded-2xl text-center text-stone-400 text-xs col-span-full">Sem comunicados ativos.</div>`;
+
+  const logsHtml = S.me.cargo==='ADMIN' && S.logs.length
+    ? `<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+         <h4 class="font-cinzel text-xs font-bold text-stone-900 mb-3 border-b border-stone-100 pb-2 uppercase">Auditoria Recente</h4>
+         ${S.logs.slice(0,8).map(l=>`<div class="flex justify-between items-start py-1.5 border-b border-stone-100 last:border-0 text-xs"><div class="truncate pr-2"><span class="font-bold text-amber-700">${l.user||'?'}</span> <span class="text-stone-600 font-light">${l.action||''}</span></div><span class="text-[10px] text-stone-400 whitespace-nowrap shrink-0">${l._ts?.toDate?l._ts.toDate().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}</span></div>`).join('')}
+       </div>`
+    : '';
+
+  ws.innerHTML = `
+    <div class="mb-6 fi"><h1 class="font-cinzel text-2xl font-bold text-stone-900">Início</h1><p class="text-xs text-stone-500">Bem-vindo(a) ao Cantinho de Pai José da Bahia</p></div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 fi">${cards}</div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-1 space-y-6">
+        ${giraCard}
+        <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+          <h4 class="font-cinzel text-xs font-bold text-stone-900 mb-3 border-b border-stone-100 pb-2 uppercase">🎂 Aniversariantes do Mês</h4>
+          ${anivHtml}
+        </div>
+        ${logsHtml}
+      </div>
+      <div class="lg:col-span-2">
+        <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-200 pb-2 mb-4">Quadro de Avisos</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">${avisosHtml}</div>
+      </div>
+    </div>`;
 }
 
-// ════════════════════════════════════════════════════
-// FINANCEIRO
-// ════════════════════════════════════════════════════
-let fMonth='',fCat='';
-function rFin(ws,hw){
-    const ent=S.transactions.filter(t=>t.type==='entrada').reduce((a,t)=>a+t.amount,0);
-    const sai=S.transactions.filter(t=>t.type==='saida').reduce((a,t)=>a+t.amount,0);
-    const sal=ent-sai;
-    const byM={};S.transactions.forEach(t=>{const k=(t.date||'').slice(0,7);if(!k)return;if(!byM[k]){byM[k]={e:0,s:0};}t.type==='entrada'?byM[k].e+=t.amount:byM[k].s+=t.amount;});
-    const mkeys=Object.keys(byM).sort().slice(-6);
-    const byCat={};S.transactions.filter(t=>t.type==='saida').forEach(t=>{byCat[t.category]=(byCat[t.category]||0)+t.amount;});
-    let filtered=[...S.transactions].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-    if(fMonth)filtered=filtered.filter(t=>(t.date||'').slice(5,7)===fMonth);
-    if(fCat)  filtered=filtered.filter(t=>t.category===fCat);
-    const cats=S.finCategories.map(c=>c.name||c).filter(Boolean);
-    const rows=filtered.length?filtered.map(t=>`<tr class="hover:bg-stone-50/50 text-xs border-b border-stone-100"><td class="px-4 py-3 text-stone-500 whitespace-nowrap">${t.date||''}</td><td class="px-4 py-3 font-bold ${t.type==='entrada'?'text-emerald-600':'text-red-500'}">${t.type==='entrada'?'+':'-'} R$ ${(t.amount||0).toFixed(2)}</td><td class="px-4 py-3"><span class="px-2 py-0.5 rounded bg-stone-100 text-stone-700 font-bold text-[10px] border">${t.category||''}</span></td><td class="px-4 py-3 text-stone-700 font-light max-w-xs truncate">${t.description||''}</td><td class="px-4 py-3 text-stone-400">${t.user||''}</td>${hw?`<td class="px-4 py-3 text-right"><button onclick="fsDel('transactions','${t.id}').then(()=>notif('Removido','','warning'))" class="text-xs text-stone-400 hover:text-red-600">Remover</button></td>`:'<td></td>'}</tr>`).join(''):`<tr><td colspan="6" class="py-8 text-center text-stone-400 text-xs">Nenhum lançamento encontrado.</td></tr>`;
-    const mensHtml=S.users.map(u=>`<div class="flex items-center justify-between p-3 rounded-xl border border-stone-100 bg-white text-xs"><div class="min-w-0 flex-1 pr-2"><span class="font-bold text-stone-800 block truncate">${u.name}</span><span class="text-[10px] text-stone-400">R$ ${(u.duesItems||[]).reduce((a,c)=>a+(c.value||0),0).toFixed(2)}</span></div><div class="flex items-center gap-2 shrink-0"><span class="px-2 py-0.5 rounded font-bold text-[10px] ${u.duesStatus==='Em Dia'?'bg-emerald-50 text-emerald-800':'bg-red-50 text-red-800'}">${u.duesStatus||'—'}</span>${hw&&u.duesStatus!=='Em Dia'?`<button onclick="settleDues('${u.id}')" class="px-2 py-1 bg-amber-500 text-stone-950 font-bold rounded-lg text-[10px]">Quitar</button>`:''}</div></div>`).join('');
-    ws.innerHTML=`<div class="mb-6 flex flex-col md:flex-row justify-between items-start gap-2"><div><h1 class="font-cinzel text-2xl font-bold text-stone-900">Financeiro</h1><p class="text-xs text-stone-500">Livro caixa e mensalidades</p></div>${hw?`<div class="flex flex-wrap gap-2"><button onclick="openChargeModal()" class="px-3 py-2 bg-amber-500 text-stone-950 text-xs font-bold rounded-xl uppercase shadow">Lançar Cobrança</button><button onclick="openTransModal()" class="px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-xl uppercase shadow">Lançar Caixa</button></div>`:''}</div><div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">${card('💚','Entradas',`R$ ${ent.toFixed(2)}`,'text-emerald-600')}${card('🔴','Saídas',`R$ ${sai.toFixed(2)}`,'text-red-500')}${card('⚖️','Balanço',`R$ ${sal.toFixed(2)}`,sal>=0?'text-amber-600':'text-red-700')}${card('⚠️','Inadimplentes',`${S.users.filter(u=>u.duesStatus==='Pendente').length}`,'text-stone-900')}</div><div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6"><div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm"><h3 class="font-cinzel text-sm font-bold text-stone-900 mb-4">Evolução (últimos 6 meses)</h3><div style="height:220px"><canvas id="chartBar"></canvas></div></div><div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm"><h3 class="font-cinzel text-sm font-bold text-stone-900 mb-4">Saídas por Categoria</h3><div style="height:220px"><canvas id="chartDonut"></canvas></div></div></div><div class="grid grid-cols-1 lg:grid-cols-3 gap-6"><div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm"><div class="flex flex-col md:flex-row justify-between items-center gap-3 border-b border-stone-100 pb-4 mb-4"><h3 class="font-cinzel text-sm font-bold text-stone-900">Livro Caixa</h3><div class="flex flex-wrap gap-2"><select onchange="fMonth=this.value;renderCurrentTab()" class="px-3 py-1.5 text-xs bg-stone-50 border border-stone-200 rounded-lg focus:outline-none"><option value="">Todos os meses</option>${['01','02','03','04','05','06','07','08','09','10','11','12'].map((m,i)=>`<option value="${m}" ${fMonth===m?'selected':''}>${['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][i]}</option>`).join('')}</select><button onclick="exportCSV()" class="px-3 py-1.5 text-xs bg-stone-100 hover:bg-stone-200 border border-stone-200 rounded-lg font-bold text-stone-700">📥 CSV</button></div></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="bg-stone-50 text-[10px] font-bold uppercase tracking-wider text-stone-400 border-b border-stone-200"><th class="px-4 py-3">Data</th><th class="px-4 py-3">Valor</th><th class="px-4 py-3">Categoria</th><th class="px-4 py-3">Descrição</th><th class="px-4 py-3">Por</th><th class="px-4 py-3"></th></tr></thead><tbody>${rows}</tbody></table></div></div><div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm"><h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-2 mb-4">Mensalidades</h3><div class="space-y-2 max-h-[400px] overflow-y-auto pr-1">${mensHtml}</div></div></div>`;
-    setTimeout(()=>{
-        const cb=document.getElementById('chartBar'),cd=document.getElementById('chartDonut');
-        if(cb&&mkeys.length)new Chart(cb,{type:'bar',data:{labels:mkeys.map(k=>{const[y,m]=k.split('-');return new Date(y,m-1).toLocaleString('pt-BR',{month:'short',year:'2-digit'});}),datasets:[{label:'Entradas',data:mkeys.map(k=>byM[k].e),backgroundColor:'rgba(16,185,129,.7)',borderRadius:6},{label:'Saídas',data:mkeys.map(k=>byM[k].s),backgroundColor:'rgba(239,68,68,.7)',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:12}}},scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{ticks:{callback:v=>`R$${v}`,font:{size:11}},grid:{color:'rgba(0,0,0,.05)'}}}}});
-        if(cd&&Object.keys(byCat).length)new Chart(cd,{type:'doughnut',data:{labels:Object.keys(byCat),datasets:[{data:Object.values(byCat),backgroundColor:['#f59e0b','#ef4444','#3b82f6','#10b981','#8b5cf6','#f97316'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:8}}}}});
-    },50);
-}
-function openTransModal(){
-    const cats=S.finCategories.map(c=>c.name||c).filter(Boolean);
-    openModal('Lançar Movimentação',`<form onsubmit="handleTrans(event)" class="space-y-4 text-xs"><div class="grid grid-cols-2 gap-4"><div><label class="block font-bold text-stone-500 uppercase mb-1">Tipo</label><select id="t-type" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"><option value="entrada">Entrada (+)</option><option value="saida">Saída (-)</option></select></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Valor R$</label><input type="number" step="0.01" min="0.01" id="t-amt" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none" placeholder="0.00"></div></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Categoria</label><div class="flex gap-2"><select id="t-cat" class="flex-1 p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">${cats.map(c=>`<option>${c}</option>`).join('')}</select><button type="button" onclick="openCatModal('fin')" class="px-3 bg-stone-100 hover:bg-stone-200 rounded-xl font-bold">+ Nova</button></div></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Data</label><input type="date" id="t-date" required value="${new Date().toISOString().split('T')[0]}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Descrição</label><textarea id="t-desc" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none h-20"></textarea></div><div class="pt-4 flex justify-end gap-2 border-t border-stone-100"><button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button><button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Registrar</button></div></form>`);
-}
-async function handleTrans(e){e.preventDefault();await fsAdd('transactions',{type:document.getElementById('t-type').value,amount:parseFloat(document.getElementById('t-amt').value),category:document.getElementById('t-cat').value,date:document.getElementById('t-date').value,description:document.getElementById('t-desc').value.trim(),user:S.me.name});await addLog('Lançou movimentação financeira');closeModal();notif('Registrado','','success');}
-async function settleDues(uid){const u=S.users.find(x=>x.id===uid);if(!u)return;const total=(u.duesItems||[]).reduce((a,c)=>a+(c.value||0),0)||80;await fsUpd('users',uid,{duesStatus:'Em Dia',duesItems:[]});await fsAdd('transactions',{type:'entrada',amount:total,category:'Mensalidades',date:new Date().toISOString().split('T')[0],description:`Mensalidades quitadas — ${u.name}`,user:S.me.name});await addLog(`Quitou mensalidades de ${u.name}`);notif('Quitado',`R$ ${total.toFixed(2)} lançado`,'success');}
-function openChargeModal(){
-    const gOpts=S.groups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('')||'<option>Nenhum grupo</option>';
-    const uOpts=S.users.map(u=>`<option value="${u.id}">${u.name}</option>`).join('');
-    openModal('Lançar Cobrança',`<form onsubmit="handleCharge(event)" class="space-y-4 text-xs"><div><label class="block font-bold text-stone-500 uppercase mb-1">Título</label><input type="text" id="ch-title" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div class="grid grid-cols-2 gap-3"><div><label class="block font-bold text-stone-500 uppercase mb-1">Valor R$</label><input type="number" step="0.01" min="0.01" id="ch-val" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Destinatários</label><select id="ch-type" onchange="document.getElementById('ch-gd').classList.toggle('hide',this.value!=='group');document.getElementById('ch-sd').classList.toggle('hide',this.value!=='single')" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"><option value="all">Todos</option><option value="group">Grupo</option><option value="single">Individual</option></select></div></div><div id="ch-gd" class="hide"><label class="block font-bold text-stone-500 uppercase mb-1">Grupo</label><select id="ch-grp" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">${gOpts}</select></div><div id="ch-sd" class="hide"><label class="block font-bold text-stone-500 uppercase mb-1">Médium</label><select id="ch-usr" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">${uOpts}</select></div><div class="pt-4 flex justify-end gap-2 border-t border-stone-100"><button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button><button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Lançar</button></div></form>`);
-}
-async function handleCharge(e){e.preventDefault();const title=document.getElementById('ch-title').value.trim(),value=parseFloat(document.getElementById('ch-val').value),type=document.getElementById('ch-type').value;let targets=S.users;if(type==='group'){const g=S.groups.find(x=>x.id===document.getElementById('ch-grp').value);targets=g?S.users.filter(u=>g.members?.includes(u.id)):[];}if(type==='single')targets=S.users.filter(u=>u.id===document.getElementById('ch-usr').value);if(!targets.length){notif('Erro','Nenhum destinatário.','error');return;}const batch=fb().writeBatch(db());targets.forEach(u=>{batch.update(fb().doc(db(),'users',u.id),{duesStatus:'Pendente',duesItems:[...(u.duesItems||[]),{item:title,value}]});});await batch.commit();await addLog(`Lançou cobrança "${title}" para ${targets.length} médium(ns)`);closeModal();notif('Cobrança lançada',`${targets.length} médium(ns)`,'success');}
-function openCatModal(tipo){openModal('Nova Categoria',`<div class="space-y-4 text-xs"><div><label class="block font-bold text-stone-500 uppercase mb-1">Nome</label><input type="text" id="ncat" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div class="pt-4 flex justify-end gap-2"><button onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button><button onclick="saveCat('${tipo}')" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Criar</button></div></div>`);}
-async function saveCat(tipo){const v=document.getElementById('ncat')?.value.trim();if(!v)return;await fsAdd(tipo==='fin'?'finCategories':'stockCategories',{name:v});closeModal();notif('Categoria criada',v,'success');}
-function exportCSV(){let rows=[...S.transactions].sort((a,b)=>(b.date||'').localeCompare(a.date||''));if(fMonth)rows=rows.filter(t=>(t.date||'').slice(5,7)===fMonth);const csv='Data,Tipo,Valor,Categoria,Descrição,Por\n'+rows.map(t=>`${t.date},${t.type},${(t.amount||0).toFixed(2)},${t.category},"${t.description||''}",${t.user||''}`).join('\n');const b=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`financeiro-${new Date().toISOString().split('T')[0]}.csv`;a.click();notif('CSV exportado','','success');}
-</script>
-<script>
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // ALMOXARIFADO
-// ════════════════════════════════════════════════════
-let stSrch='';
-function rEstoque(ws,hw){
-    const items=stSrch?S.stock.filter(i=>i.name?.toLowerCase().includes(stSrch.toLowerCase())||i.category?.toLowerCase().includes(stSrch.toLowerCase())):S.stock;
-    const rows=items.length?items.map(i=>{const crit=i.quantity<=i.minQuantity;return `<tr class="hover:bg-stone-50/50 text-xs border-b border-stone-100"><td class="px-4 py-3 font-bold text-stone-800">${i.name}</td><td class="px-4 py-3 text-stone-600">${i.category}</td><td class="px-4 py-3 text-stone-500">${i.location}</td><td class="px-4 py-3"><span class="inline-flex px-2 py-1 rounded-xl text-xs font-bold ${crit?'bg-red-50 text-red-800 animate-pulse border border-red-100':'bg-stone-100 text-stone-700'}">${i.quantity} un</span></td><td class="px-4 py-3 text-stone-400 max-w-xs truncate">${i.notes||'—'}</td><td class="px-4 py-3 text-right">${hw?`<div class="flex items-center justify-end gap-1"><button onclick="adjQty('${i.id}',-1,${i.quantity},${i.minQuantity},'${i.name?.replace(/'/g,"")}')" class="px-2 py-1 bg-stone-100 hover:bg-stone-200 rounded-lg font-bold text-xs">−</button><button onclick="adjQty('${i.id}',1,${i.quantity},${i.minQuantity},'${i.name?.replace(/'/g,"")}')" class="px-2 py-1 bg-stone-100 hover:bg-stone-200 rounded-lg font-bold text-xs">+</button><button onclick="fsDel('stock','${i.id}').then(()=>notif('Removido','','warning'))" class="ml-1 text-xs text-stone-400 hover:text-red-600">Excluir</button></div>`:''}</td></tr>`;}):` <tr><td colspan="6" class="py-8 text-center text-stone-400 text-xs">Nenhum item encontrado.</td></tr>`;
-    ws.innerHTML=`<div class="mb-6 flex flex-col md:flex-row justify-between items-start gap-2"><div><h1 class="font-cinzel text-2xl font-bold text-stone-900">Almoxarifado</h1><p class="text-xs text-stone-500">Materiais litúrgicos e insumos</p></div>${hw?`<button onclick="openStockModal()" class="px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-xl uppercase shadow">Novo Insumo</button>`:''}</div><div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-4"><div class="relative max-w-md"><input type="text" value="${stSrch}" oninput="stSrch=this.value;renderCurrentTab()" class="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:outline-none" placeholder="Buscar insumo..."><span class="absolute left-3 top-2.5 text-stone-400 text-xs">🔍</span></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="bg-stone-50 text-[10px] font-bold uppercase tracking-wider text-stone-400 border-b border-stone-200"><th class="px-4 py-3">Insumo</th><th class="px-4 py-3">Categoria</th><th class="px-4 py-3">Localização</th><th class="px-4 py-3">Qtd</th><th class="px-4 py-3">Obs</th><th class="px-4 py-3"></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
-}
-async function adjQty(id,delta,cur,min,name){const nq=Math.max(0,cur+delta);await fsUpd('stock',id,{quantity:nq});if(nq<=min)notif('Estoque Baixo',`${name} atingiu o mínimo.`,'warning');await addLog(`Ajustou estoque: ${name} → ${nq}`);}
-function openStockModal(){const cats=S.stockCategories.map(c=>c.name||c).filter(Boolean);openModal('Novo Insumo',`<form onsubmit="handleStock(event)" class="space-y-4 text-xs"><div><label class="block font-bold text-stone-500 uppercase mb-1">Nome</label><input type="text" id="s-name" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div class="grid grid-cols-2 gap-4"><div><label class="block font-bold text-stone-500 uppercase mb-1">Categoria</label><div class="flex gap-2"><select id="s-cat" class="flex-1 p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">${cats.map(c=>`<option>${c}</option>`).join('')}</select><button type="button" onclick="openCatModal('stock')" class="px-2 bg-stone-100 rounded-xl font-bold">+</button></div></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Localização</label><input type="text" id="s-loc" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div></div><div class="grid grid-cols-2 gap-4"><div><label class="block font-bold text-stone-500 uppercase mb-1">Quantidade</label><input type="number" min="0" id="s-qty" required value="0" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Mínimo Crítico</label><input type="number" min="0" id="s-min" required value="0" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Observações</label><textarea id="s-notes" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none h-16"></textarea></div><div class="pt-4 flex justify-end gap-2 border-t border-stone-100"><button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button><button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Salvar</button></div></form>`);}
-async function handleStock(e){e.preventDefault();await fsAdd('stock',{name:document.getElementById('s-name').value.trim(),category:document.getElementById('s-cat').value,location:document.getElementById('s-loc').value.trim(),quantity:parseInt(document.getElementById('s-qty').value),minQuantity:parseInt(document.getElementById('s-min').value),notes:document.getElementById('s-notes').value.trim()});await addLog('Cadastrou insumo');closeModal();notif('Insumo adicionado','','success');}
+// ══════════════════════════════════════════════════════
+let stSrch = '';
+function rEstoque(ws, hw) {
+  const items = stSrch ? S.stock.filter(i=>i.name?.toLowerCase().includes(stSrch.toLowerCase())||i.category?.toLowerCase().includes(stSrch.toLowerCase())) : S.stock;
+  const rows = items.length ? items.map(i=>{
+    const crit = i.quantity<=i.minQuantity;
+    return `<tr class="hover:bg-stone-50/50 text-xs border-b border-stone-100">
+      <td class="px-4 py-3 font-bold text-stone-800">${i.name}</td>
+      <td class="px-4 py-3 text-stone-600">${i.category}</td>
+      <td class="px-4 py-3 text-stone-500">${i.location}</td>
+      <td class="px-4 py-3"><span class="inline-flex px-2 py-1 rounded-xl text-xs font-bold ${crit?'bg-red-50 text-red-800 animate-pulse border border-red-100':'bg-stone-100 text-stone-700'}">${i.quantity} un</span></td>
+      <td class="px-4 py-3 text-stone-400 max-w-xs truncate">${i.notes||'—'}</td>
+      <td class="px-4 py-3 text-right">${hw?`<div class="flex items-center justify-end gap-1">
+        <button onclick="adjQty('${i.id}',-1,${i.quantity},${i.minQuantity},'${(i.name||'').replace(/'/g,'')}') " class="px-2 py-1 bg-stone-100 hover:bg-stone-200 rounded-lg font-bold text-xs">−</button>
+        <button onclick="adjQty('${i.id}',1,${i.quantity},${i.minQuantity},'${(i.name||'').replace(/'/g,'')}') " class="px-2 py-1 bg-stone-100 hover:bg-stone-200 rounded-lg font-bold text-xs">+</button>
+        <button onclick="fsDel('stock','${i.id}').then(()=>notif('Removido','','warning'))" class="ml-1 text-xs text-stone-400 hover:text-red-600">Excluir</button>
+      </div>`:''}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" class="py-8 text-center text-stone-400 text-xs">Nenhum item encontrado.</td></tr>`;
 
-// ════════════════════════════════════════════════════
-// COZINHA
-// ════════════════════════════════════════════════════
-function rCozinha(ws,hw){
-    const dry=S.foods.filter(f=>f.location==='Despensa Seca').map(f=>`<div class="flex justify-between items-center p-3 rounded-xl border border-stone-100 bg-stone-50 text-xs"><div><span class="font-bold text-stone-700 block">${f.name}</span><span class="text-[10px] text-stone-400">Val: ${f.expiry}</span></div><div class="flex items-center gap-3"><span class="font-semibold">${f.weight}</span>${hw?`<button onclick="fsDel('foods','${f.id}').then(()=>notif('Removido','','warning'))" class="text-xs text-stone-400 hover:text-red-600">Excluir</button>`:''}</div></div>`).join('')||'<p class="text-xs text-stone-400 text-center py-4">Sem itens na despensa.</p>';
-    const frz=S.freezers.map(fr=>{const items=S.foods.filter(f=>f.location===fr.id).map(f=>`<div class="flex justify-between items-center py-2 border-b border-stone-100 last:border-0 text-xs"><div><span class="font-medium text-stone-700 block">${f.name}</span><span class="text-[9px] text-stone-400">Vence: ${f.expiry}</span></div><div class="flex items-center gap-2"><span class="font-bold text-[10px]">${f.weight}</span>${hw?`<button onclick="fsDel('foods','${f.id}').then(()=>notif('Removido','','warning'))" class="text-xs text-stone-400 hover:text-red-600">Excluir</button>`:''}</div></div>`).join('')||'<span class="text-xs text-stone-400 block py-4 text-center">Vazio.</span>';return `<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm"><div class="flex justify-between items-center border-b border-stone-100 pb-3 mb-3"><span class="font-cinzel text-xs font-bold text-stone-900">❄️ ${fr.name}</span>${hw?`<button onclick="delFrz('${fr.id}')" class="text-[10px] text-red-500 font-semibold">Remover</button>`:''}</div><div class="space-y-1 max-h-[180px] overflow-y-auto">${items}</div></div>`;}).join('')||'<div class="col-span-full p-8 bg-white border border-dashed border-stone-200 rounded-2xl text-center text-stone-400 text-xs">Nenhum freezer cadastrado.</div>';
-    ws.innerHTML=`<div class="mb-6 flex flex-col md:flex-row justify-between items-start gap-2"><div><h1 class="font-cinzel text-2xl font-bold text-stone-900">Cozinha & Despensa</h1><p class="text-xs text-stone-500">Suprimentos e conservação</p></div>${hw?`<div class="flex gap-2"><button onclick="openFrzModal()" class="px-3 py-2 border border-stone-300 text-stone-700 text-xs font-bold rounded-xl hover:bg-stone-100 uppercase">Criar Freezer</button><button onclick="openFoodModal()" class="px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-xl uppercase shadow">Adicionar Alimento</button></div>`:''}</div><div class="grid grid-cols-1 lg:grid-cols-3 gap-6"><div class="lg:col-span-1 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm"><h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">🌾 Despensa Seca</h3><div class="space-y-2 max-h-[450px] overflow-y-auto">${dry}</div></div><div class="lg:col-span-2 space-y-4"><h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-200 pb-2">Conservação</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4">${frz}</div></div></div>`;
-}
-function openFrzModal(){openModal('Criar Freezer',`<form onsubmit="handleFrz(event)" class="space-y-4 text-xs"><div><label class="block font-bold text-stone-500 uppercase mb-1">Nome</label><input type="text" id="fr-name" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div class="pt-4 flex justify-end gap-2"><button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button><button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Salvar</button></div></form>`);}
-async function handleFrz(e){e.preventDefault();await fsAdd('freezers',{name:document.getElementById('fr-name').value.trim()});closeModal();notif('Freezer criado','','success');}
-async function delFrz(id){if(S.foods.some(f=>f.location===id)){notif('Atenção','Esvazie o freezer antes de remover.','error');return;}await fsDel('freezers',id);notif('Removido','','warning');}
-function openFoodModal(){const fOpts=S.freezers.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');openModal('Lançar Alimento',`<form onsubmit="handleFood(event)" class="space-y-4 text-xs"><div><label class="block font-bold text-stone-500 uppercase mb-1">Nome</label><input type="text" id="fo-n" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div class="grid grid-cols-2 gap-4"><div><label class="block font-bold text-stone-500 uppercase mb-1">Peso/Medida</label><input type="text" id="fo-w" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Validade</label><input type="date" id="fo-e" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Local</label><select id="fo-l" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"><option value="Despensa Seca">Despensa Seca</option>${fOpts}</select></div><div class="pt-4 flex justify-end gap-2"><button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button><button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Lançar</button></div></form>`);}
-async function handleFood(e){e.preventDefault();await fsAdd('foods',{name:document.getElementById('fo-n').value.trim(),weight:document.getElementById('fo-w').value.trim(),expiry:document.getElementById('fo-e').value,location:document.getElementById('fo-l').value});closeModal();notif('Adicionado','','success');}
-
-// ════════════════════════════════════════════════════
-// TECIDOS
-// ════════════════════════════════════════════════════
-let fbSrch='';
-function rTecidos(ws,hw){
-    const boxes=S.caixotes.map(box=>{let fabs=S.fabrics.filter(f=>f.caixoteId===box.id);if(fbSrch)fabs=fabs.filter(f=>f.pieceName?.toLowerCase().includes(fbSrch.toLowerCase())||f.line?.toLowerCase().includes(fbSrch.toLowerCase()));const list=fabs.map(fb=>`<div class="flex justify-between items-center py-2 border-b border-stone-100 last:border-0 text-xs"><div><span class="font-bold text-stone-700 block">${fb.pieceName}</span><span class="text-[9px] text-stone-400">Cor: ${fb.color} | Linha: ${fb.line}</span></div><div class="flex items-center gap-2"><span class="px-2 py-0.5 rounded-full bg-stone-100 font-bold text-[10px]">${fb.quantity} peças</span>${hw?`<button onclick="fsDel('fabrics','${fb.id}').then(()=>notif('Removido','','warning'))" class="text-xs text-stone-400 hover:text-red-600">Remover</button>`:''}</div></div>`).join('')||'<span class="text-xs text-stone-400 block py-4 text-center">Vazio.</span>';return `<div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden"><button onclick="fsUpd('caixotes','${box.id}',{isOpen:${!box.isOpen}})" class="w-full flex justify-between items-center px-5 py-4 bg-stone-50/50 hover:bg-stone-50 focus:outline-none"><div><h4 class="font-cinzel font-bold text-xs text-stone-900 text-left">${box.name}</h4><span class="text-[10px] text-stone-400">${fabs.length} peças</span></div><span class="${box.isOpen?'rotate-180':''}  transition-transform">▼</span></button><div class="${box.isOpen?'block':'hidden'} px-5 py-3"><div class="space-y-2 mb-4 max-h-[220px] overflow-y-auto">${list}</div>${hw?`<button onclick="openFabModal('${box.id}')" class="w-full py-2 bg-stone-50 hover:bg-stone-100 text-stone-800 border border-dashed border-stone-200 font-bold rounded-xl text-xs">Adicionar neste caixote</button>`:''}</div></div>`;}).join('')||'<div class="col-span-full text-center text-xs py-8 text-stone-400">Nenhum caixote.</div>';
-    ws.innerHTML=`<div class="mb-6 flex flex-col md:flex-row justify-between items-start gap-2"><div><h1 class="font-cinzel text-2xl font-bold text-stone-900">Tecidos & Caixotes</h1><p class="text-xs text-stone-500">Vestuário litúrgico</p></div>${hw?`<button onclick="openCaixoteModal()" class="px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-xl uppercase shadow">Criar Caixote</button>`:''}</div><div class="mb-6 max-w-md"><div class="relative"><input type="text" value="${fbSrch}" oninput="fbSrch=this.value;renderCurrentTab()" class="w-full pl-9 pr-4 py-2 bg-white border border-stone-200 rounded-xl text-xs focus:outline-none" placeholder="Buscar peça ou linha..."><span class="absolute left-3.5 top-3 text-stone-400 text-xs">🔍</span></div></div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">${boxes}</div>`;
-}
-function openCaixoteModal(){openModal('Criar Caixote',`<form onsubmit="handleCaixote(event)" class="space-y-4 text-xs"><div><label class="block font-bold text-stone-500 uppercase mb-1">Nome</label><input type="text" id="cx-n" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div class="pt-4 flex justify-end gap-2"><button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button><button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Criar</button></div></form>`);}
-async function handleCaixote(e){e.preventDefault();await fsAdd('caixotes',{name:document.getElementById('cx-n').value.trim(),isOpen:true});closeModal();notif('Caixote criado','','success');}
-function openFabModal(cid){openModal('Lançar Peça',`<form onsubmit="handleFab(event,'${cid}')" class="space-y-4 text-xs"><div><label class="block font-bold text-stone-500 uppercase mb-1">Nome da Peça</label><input type="text" id="fb-n" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div class="grid grid-cols-2 gap-4"><div><label class="block font-bold text-stone-500 uppercase mb-1">Cor</label><input type="text" id="fb-c" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Linha</label><input type="text" id="fb-l" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Quantidade</label><input type="number" min="1" id="fb-q" required value="1" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div class="pt-4 flex justify-end gap-2 border-t border-stone-100"><button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button><button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Lançar</button></div></form>`);}
-async function handleFab(e,cid){e.preventDefault();await fsAdd('fabrics',{caixoteId:cid,pieceName:document.getElementById('fb-n').value.trim(),color:document.getElementById('fb-c').value.trim(),line:document.getElementById('fb-l').value.trim(),quantity:parseInt(document.getElementById('fb-q').value)});closeModal();notif('Peça cadastrada','','success');}
-</script>
-<script>
-// ════════════════════════════════════════════════════
-// SECRETARIA
-// ════════════════════════════════════════════════════
-function rSec(ws,hw){
-    const notices=S.notices.length?S.notices.map(n=>{const b=n.level==='urgente'?'bg-red-50 text-red-800 border-red-100':n.level==='festividade'?'bg-amber-50 text-amber-800 border-amber-200':'bg-stone-100 text-stone-800 border-stone-200';return `<div class="p-4 bg-stone-50 rounded-2xl border border-stone-200 flex justify-between items-start gap-3 text-xs"><div><div class="flex items-center gap-2 mb-1"><span class="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase border ${b}">${n.level}</span><span class="text-stone-400">${n.date||''}</span></div><h4 class="font-bold text-stone-900 text-sm mb-1">${n.title}</h4><p class="text-slate-600 leading-relaxed font-light">${n.text}</p></div>${hw?`<button onclick="fsDel('notices','${n.id}').then(()=>notif('Removido','','warning'))" class="text-stone-400 hover:text-red-500 p-1.5 rounded-xl hover:bg-stone-100 shrink-0">✕</button>`:''}</div>`;}).join(''):`<div class="p-8 text-center text-stone-400 text-xs border border-dashed border-stone-200 rounded-xl">Sem comunicados.</div>`;
-    ws.innerHTML=`<div class="mb-6"><h1 class="font-cinzel text-2xl font-bold text-stone-900">Secretaria & Alertas</h1><p class="text-xs text-stone-500">Cronograma, comunicados e alertas</p></div><div class="grid grid-cols-1 lg:grid-cols-12 gap-6"><div class="lg:col-span-5 space-y-6">${hw?`<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm"><h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">📅 Escalar Gira</h3><form onsubmit="handleGira(event)" class="space-y-4 text-xs"><div class="grid grid-cols-2 gap-3"><div><label class="block font-bold text-stone-500 uppercase mb-1">Data</label><input type="date" id="g-d" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Hora</label><input type="time" id="g-h" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Linha de Trabalho</label><input type="text" id="g-l" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none" placeholder="Ex: Gira de Pretos Velhos"></div><div class="grid grid-cols-2 gap-3"><div><label class="block font-bold text-stone-500 uppercase mb-1">Dirigente</label><input type="text" id="g-dir" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Vestuário</label><input type="text" id="g-v" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Recomendações</label><textarea id="g-r" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none h-16"></textarea></div><button type="submit" class="w-full py-2.5 bg-stone-900 text-white font-bold rounded-xl uppercase">Confirmar Gira</button></form></div><div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm"><h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">📢 Publicar Alerta</h3><form onsubmit="handleNotice(event)" class="space-y-4 text-xs"><div class="grid grid-cols-2 gap-3"><div><label class="block font-bold text-stone-500 uppercase mb-1">Título</label><input type="text" id="n-t" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Nível</label><select id="n-l" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"><option value="normal">Normal</option><option value="festividade">Festividade</option><option value="urgente">Urgente</option></select></div></div><div><label class="block font-bold text-stone-500 uppercase mb-1">Mensagem</label><textarea id="n-m" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none h-16"></textarea></div><button type="submit" class="w-full py-2.5 bg-stone-900 text-white font-bold rounded-xl uppercase">Publicar</button></form></div>`:''}</div><div class="lg:col-span-7 bg-white p-6 rounded-2xl border border-stone-200 shadow-sm"><h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">Quadro de Avisos</h3><div class="space-y-3 max-h-[600px] overflow-y-auto pr-1">${notices}</div></div></div>`;
-}
-async function handleGira(e){e.preventDefault();await fsAdd('schedule',{date:document.getElementById('g-d').value,time:document.getElementById('g-h').value,line:document.getElementById('g-l').value.trim(),dirigente:document.getElementById('g-dir').value.trim(),vestuario:document.getElementById('g-v').value.trim(),recomendacoes:document.getElementById('g-r').value.trim()});await addLog(`Escalou gira: ${document.getElementById('g-l').value}`);e.target.reset();notif('Gira Escalada','','success');}
-async function handleNotice(e){e.preventDefault();await fsAdd('notices',{title:document.getElementById('n-t').value.trim(),text:document.getElementById('n-m').value.trim(),level:document.getElementById('n-l').value,date:new Date().toISOString().split('T')[0]});await addLog('Publicou comunicado');e.target.reset();notif('Comunicado publicado','','success');}
-
-// ════════════════════════════════════════════════════
-// MÉDIUNS
-// ════════════════════════════════════════════════════
-function rMediuns(ws,hw){
-    const cards=S.users.map(m=>{const c=m.crown||{};return `<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm text-xs flex flex-col"><div class="flex justify-between items-start mb-3 border-b border-stone-100 pb-2"><div><h4 class="font-bold text-stone-900 text-sm">${m.name}</h4><span class="text-[10px] text-stone-500 uppercase">${m.cargo}</span></div><span class="px-2 py-0.5 rounded font-bold text-[9px] ${m.duesStatus==='Em Dia'?'bg-emerald-50 text-emerald-800':'bg-red-50 text-red-800'}">${m.duesStatus||'—'}</span></div><div class="space-y-1.5 text-stone-600 mb-4 flex-1">${[['Orixá de Frente',c.orixaFrente,'font-bold text-amber-800'],['Orixá de Juntó',c.orixaJunto,''],['Exu',c.exu,''],['Pombagira',c.pombagira,''],['Caboclo',c.caboclo,''],['Boiadeiro',c.boiadeiro,''],['Erê',c.ere,''],['Preto Velho',c.pretoVelho,'']].map(([l,v,cls])=>`<p class="flex justify-between gap-2"><strong>${l}:</strong><span class="${cls} text-right">${v||'—'}</span></p>`).join('')}${m.birthday?`<p class="flex justify-between border-t border-stone-100 pt-1.5 mt-1.5"><strong>Aniversário:</strong><span>${new Date(m.birthday+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})}</span></p>`:''}</div>${hw?`<button onclick="openCrownModal('${m.id}')" class="w-full py-2 bg-stone-50 hover:bg-stone-100 text-amber-900 font-bold rounded-xl border border-stone-200 mt-auto">Editar Ficha</button>`:''}</div>`;}).join('');
-    ws.innerHTML=`<div class="mb-6"><h1 class="font-cinzel text-2xl font-bold text-stone-900">Corpo de Médiuns</h1><p class="text-xs text-stone-500">Controle litúrgico, coroas e guias</p></div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">${cards}</div>`;
-}
-function openCrownModal(uid){const u=S.users.find(x=>x.id===uid);if(!u)return;const c=u.crown||{};const fields=[['Orixá de Frente','cf',c.orixaFrente],['Orixá de Juntó','cj',c.orixaJunto],['Exu','ce',c.exu],['Pombagira','cp',c.pombagira],['Caboclo','cc',c.caboclo],['Boiadeiro','cb',c.boiadeiro],['Erê','cr',c.ere],['Preto Velho','cv',c.pretoVelho]];openModal(`Ficha: ${u.name}`,`<form onsubmit="handleCrown(event,'${uid}')" class="space-y-4 text-xs"><div class="grid grid-cols-2 gap-3">${fields.map(([l,id,v])=>`<div><label class="block font-bold text-stone-500 uppercase mb-1">${l}</label><input type="text" id="${id}" value="${v||''}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>`).join('')}</div><div><label class="block font-bold text-stone-500 uppercase mb-1">Aniversário</label><input type="date" id="cbd" value="${u.birthday||''}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div><div class="pt-4 flex justify-end gap-2 border-t border-stone-100"><button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button><button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Atualizar</button></div></form>`);}
-async function handleCrown(e,uid){e.preventDefault();const crown={orixaFrente:document.getElementById('cf').value.trim(),orixaJunto:document.getElementById('cj').value.trim(),exu:document.getElementById('ce').value.trim(),pombagira:document.getElementById('cp').value.trim(),caboclo:document.getElementById('cc').value.trim(),boiadeiro:document.getElementById('cb').value.trim(),ere:document.getElementById('cr').value.trim(),pretoVelho:document.getElementById('cv').value.trim()};const bday=document.getElementById('cbd').value;await fsUpd('users',uid,{crown,birthday:bday});if(S.me.id===uid){S.me.crown=crown;S.me.birthday=bday;}await addLog('Atualizou ficha de médium');closeModal();notif('Ficha atualizada','','success');}
-
-// ════════════════════════════════════════════════════
-// PRESENÇA
-// ════════════════════════════════════════════════════
-let presGira=null;
-function rPresenca(ws,hw){
-    const giras=[...S.schedule].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-    if(!presGira&&giras.length)presGira=giras[0].id;
-    const gira=giras.find(g=>g.id===presGira);
-    if(!giras.length){ws.innerHTML=`<div class="mb-6"><h1 class="font-cinzel text-2xl font-bold text-stone-900">Lista de Presença</h1></div><div class="bg-white p-12 rounded-2xl border border-dashed border-stone-200 text-center"><p class="text-stone-400 text-sm mb-3">Nenhuma gira escalada.</p><button onclick="switchTab('secretaria')" class="px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-xl uppercase">Ir para Secretaria</button></div>`;return;}
-    let pres=0,falt=0;
-    const listHtml=S.users.map(m=>{const reg=S.presencas.find(p=>p.scheduleId===presGira&&p.userId===m.id);const p=reg?reg.presente:null;if(p===true)pres++;else if(p===false)falt++;return `<div class="flex items-center justify-between p-4 rounded-2xl border border-stone-100 bg-white text-xs hover:border-stone-200"><div class="flex-1 min-w-0 pr-4"><span class="font-bold text-stone-800 block">${m.name}</span><span class="text-[10px] text-stone-400 uppercase">${m.cargo}</span></div>${hw?`<div class="flex items-center gap-2 shrink-0"><button onclick="setPresenca('${presGira}','${m.id}',true)" class="px-3 py-1.5 rounded-xl font-bold text-[10px] ${p===true?'bg-emerald-500 text-white':'bg-stone-100 text-stone-600 hover:bg-emerald-50 hover:text-emerald-700'}">✓ Presente</button><button onclick="setPresenca('${presGira}','${m.id}',false)" class="px-3 py-1.5 rounded-xl font-bold text-[10px] ${p===false?'bg-red-500 text-white':'bg-stone-100 text-stone-600 hover:bg-red-50 hover:text-red-700'}">✗ Faltou</button>${p!==null?`<button onclick="clearPres('${presGira}','${m.id}')" class="px-2 py-1.5 rounded-xl font-bold text-[10px] bg-stone-100 text-stone-500">—</button>`:''}</div>`:`<span class="px-2 py-1 rounded-xl font-bold text-[10px] ${p===true?'bg-emerald-50 text-emerald-800':p===false?'bg-red-50 text-red-800':'bg-stone-100 text-stone-500'}">${p===true?'✓ Presente':p===false?'✗ Faltou':'Não registrado'}</span>`}</div>`;}).join('');
-    const freqHtml=S.users.map(m=>{const regs=S.presencas.filter(p=>p.userId===m.id);const pct=regs.length?Math.round(regs.filter(p=>p.presente).length/regs.length*100):null;return `<div class="flex items-center justify-between py-2 border-b border-stone-100 last:border-0 text-xs"><span class="text-stone-700 truncate pr-2">${m.name}</span>${pct!==null?`<div class="flex items-center gap-2 shrink-0"><div class="w-16 bg-stone-100 rounded-full h-1.5"><div class="${pct>=75?'bg-emerald-500':pct>=50?'bg-amber-500':'bg-red-500'} h-1.5 rounded-full" style="width:${pct}%"></div></div><span class="font-bold text-stone-700 w-8 text-right">${pct}%</span></div>`:`<span class="text-stone-400 text-[10px]">Sem dados</span>`}</div>`;}).join('');
-    ws.innerHTML=`<div class="mb-6"><h1 class="font-cinzel text-2xl font-bold text-stone-900">Lista de Presença</h1><p class="text-xs text-stone-500">Frequência por gira</p></div><div class="grid grid-cols-1 lg:grid-cols-3 gap-6"><div class="lg:col-span-2 space-y-4"><div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm"><div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4 pb-4 border-b border-stone-100"><div><h3 class="font-cinzel text-sm font-bold text-stone-900">Registro</h3>${gira?`<p class="text-xs text-stone-500 mt-1">${gira.line} — ${gira.date}</p>`:''}</div><select onchange="presGira=this.value;renderCurrentTab()" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:outline-none font-bold">${giras.map(g=>`<option value="${g.id}" ${g.id===presGira?'selected':''}>${g.date} — ${g.line}</option>`).join('')}</select></div><div class="flex gap-3 mb-4 text-xs"><div class="px-3 py-2 bg-emerald-50 rounded-xl text-emerald-800 font-bold border border-emerald-100">✓ ${pres}</div><div class="px-3 py-2 bg-red-50 rounded-xl text-red-800 font-bold border border-red-100">✗ ${falt}</div><div class="px-3 py-2 bg-stone-50 rounded-xl text-stone-600 font-bold border border-stone-200">? ${S.users.length-pres-falt}</div></div><div class="space-y-2">${listHtml}</div>${hw?`<div class="mt-4 pt-4 border-t border-stone-100"><button onclick="marcarTodos('${presGira}')" class="px-4 py-2 bg-emerald-500 text-white text-xs font-bold rounded-xl">✓ Marcar Todos Presentes</button></div>`:''}</div></div><div class="space-y-6">${gira?`<div class="bg-gradient-to-br from-stone-900 to-stone-800 text-white p-5 rounded-2xl"><span class="text-[10px] bg-amber-500 text-stone-950 font-bold px-2 py-0.5 rounded-lg uppercase mb-2 inline-block">Gira Selecionada</span><h4 class="font-cinzel text-sm font-bold text-amber-400 mt-1">${gira.line}</h4><div class="mt-3 space-y-1.5 text-xs text-stone-200"><p><strong class="text-stone-300">Data:</strong> ${gira.date}</p><p><strong class="text-stone-300">Hora:</strong> ${gira.time}</p><p><strong class="text-stone-300">Dirigente:</strong> ${gira.dirigente}</p><p><strong class="text-stone-300">Vestuário:</strong> ${gira.vestuario}</p></div></div>`:''}<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm"><h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">Frequência Histórica</h3><div class="space-y-1 max-h-72 overflow-y-auto">${freqHtml}</div></div></div></div>`;
-}
-async function setPresenca(sid,uid,presente){const ex=S.presencas.find(p=>p.scheduleId===sid&&p.userId===uid);if(ex)await fsUpd('presencas',ex.id,{presente});else await fsAdd('presencas',{scheduleId:sid,userId:uid,presente});}
-async function clearPres(sid,uid){const ex=S.presencas.find(p=>p.scheduleId===sid&&p.userId===uid);if(ex)await fsDel('presencas',ex.id);}
-async function marcarTodos(sid){const b=fb().writeBatch(db());S.users.forEach(u=>{const ex=S.presencas.find(p=>p.scheduleId===sid&&p.userId===u.id);if(ex)b.update(fb().doc(db(),'presencas',ex.id),{presente:true,ts:ts()});else b.set(fb().doc(db(),'presencas',`pr_${sid}_${u.id}`),{scheduleId:sid,userId:u.id,presente:true,ts:ts()});});await b.commit();notif('Todos presentes','','success');}
-</script>
-<script>
-// ════════════════════════════════════════════════════
-// HUB DO MÉDIUM
-// ════════════════════════════════════════════════════
-const QUOTES=['Fio, a paciência é uma semente que custa a crescer, mas que dá os frutos mais doces.','Não olhe para trás. O sol nasce todos os dias para clarear os caminhos da gente.','A humildade é a chave que abre todas as portas do céu.','Seja como a cana: quanto mais espremida, mais caldo doce ela dá.','As maiores batalhas são vencidas de joelhos, com fé e oração.','A Umbanda não é lugar para orgulho. Veste-se branco para mostrar que na alma todos somos iguais.','O vento que venta lá fora é o mesmo que traz o axé aqui pra dentro, fio.'];
-let curQuote=QUOTES[0];
-function rHub(ws){
-    const u=S.me,c=u.crown||{};
-    const ng=[...S.schedule].sort((a,b)=>(a.date||'').localeCompare(b.date||''))[0];
-    const dl=u.duesItems||[],tot=dl.reduce((a,i)=>a+(i.value||0),0);
-    const myP=S.presencas.filter(p=>p.userId===u.id),myPres=myP.filter(p=>p.presente).length;
-    const pct=myP.length?Math.round(myPres/myP.length*100):null;
-    ws.innerHTML=`
+  ws.innerHTML = `
     <div class="mb-6 flex flex-col md:flex-row justify-between items-start gap-2">
-        <div><h1 class="font-cinzel text-2xl font-bold text-stone-900">Área do Médium</h1><p class="text-xs text-stone-500">Seu diário espiritual e controle de obrigações</p></div>
-        <button onclick="openChangePwdModal()" class="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl uppercase sm flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-            Alterar Minha Senha
-        </button>
+      <div><h1 class="font-cinzel text-2xl font-bold text-stone-900">Almoxarifado</h1><p class="text-xs text-stone-500">Materiais e insumos litúrgicos</p></div>
+      ${hw?`<button onclick="openStockModal()" class="px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-xl uppercase shadow">Novo Insumo</button>`:''}
+    </div>
+    <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-4">
+      <div class="relative max-w-md">
+        <input type="text" value="${stSrch}" oninput="stSrch=this.value;render()" class="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:outline-none" placeholder="Buscar insumo ou categoria...">
+        <span class="absolute left-3 top-2.5 text-stone-400 text-xs">🔍</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead><tr class="bg-stone-50 text-[10px] font-bold uppercase tracking-wider text-stone-400 border-b border-stone-200">
+            <th class="px-4 py-3">Insumo</th><th class="px-4 py-3">Categoria</th><th class="px-4 py-3">Localização</th><th class="px-4 py-3">Qtd</th><th class="px-4 py-3">Obs</th><th class="px-4 py-3"></th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+async function adjQty(id,delta,cur,min,name){
+  const nq = Math.max(0,cur+delta);
+  await fsUpd('stock',id,{quantity:nq});
+  if(nq<=min) notif('Estoque Baixo',`${name} atingiu o mínimo.`,'warning');
+  await addLog(`Ajustou estoque: ${name} → ${nq}`);
+}
+function openStockModal(){
+  const cats = S.stockCats.map(c=>c.name||c).filter(Boolean);
+  openModal('Novo Insumo',`<form onsubmit="handleStock(event)" class="space-y-4 text-xs">
+    <div><label class="block font-bold text-stone-500 uppercase mb-1">Nome</label><input type="text" id="s-n" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+    <div class="grid grid-cols-2 gap-4">
+      <div><label class="block font-bold text-stone-500 uppercase mb-1">Categoria</label>
+        <div class="flex gap-2"><select id="s-c" class="flex-1 p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">${cats.map(c=>`<option>${c}</option>`).join('')}</select>
+        <button type="button" onclick="openCatModal()" class="px-3 bg-stone-100 hover:bg-stone-200 rounded-xl font-bold">+ Nova</button></div>
+      </div>
+      <div><label class="block font-bold text-stone-500 uppercase mb-1">Localização</label><input type="text" id="s-l" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+    </div>
+    <div class="grid grid-cols-2 gap-4">
+      <div><label class="block font-bold text-stone-500 uppercase mb-1">Quantidade</label><input type="number" min="0" id="s-q" required value="0" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+      <div><label class="block font-bold text-stone-500 uppercase mb-1">Mínimo Crítico</label><input type="number" min="0" id="s-m" required value="0" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+    </div>
+    <div><label class="block font-bold text-stone-500 uppercase mb-1">Observações</label><textarea id="s-o" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none h-16"></textarea></div>
+    <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+      <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+      <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Salvar</button>
+    </div></form>`);
+}
+async function handleStock(e){
+  e.preventDefault();
+  await fsAdd('stock',{name:$('s-n').value.trim(),category:$('s-c').value,location:$('s-l').value.trim(),quantity:parseInt($('s-q').value),minQuantity:parseInt($('s-m').value),notes:$('s-o').value.trim()});
+  await addLog('Cadastrou insumo'); closeModal(); notif('Insumo adicionado','','success');
+}
+function openCatModal(){
+  openModal('Nova Categoria de Estoque',`<div class="space-y-4 text-xs">
+    <div><label class="block font-bold text-stone-500 uppercase mb-1">Nome</label><input type="text" id="nc" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+    <div class="pt-4 flex justify-end gap-2">
+      <button onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+      <button onclick="saveCat()" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Criar</button>
+    </div></div>`);
+}
+async function saveCat(){
+  const v=$('nc')?.value.trim(); if(!v)return;
+  await fsAdd('stockCategories',{name:v}); closeModal(); notif('Categoria criada',v,'success');
+}
+
+// ══════════════════════════════════════════════════════
+// COZINHA
+// ══════════════════════════════════════════════════════
+function rCozinha(ws,hw){
+  const dry = S.foods.filter(f=>f.location==='Despensa Seca').map(f=>`
+    <div class="flex justify-between items-center p-3 rounded-xl border border-stone-100 bg-stone-50 text-xs">
+      <div><span class="font-bold text-stone-700 block">${f.name}</span><span class="text-[10px] text-stone-400">Validade: ${f.expiry}</span></div>
+      <div class="flex items-center gap-3"><span class="font-semibold">${f.weight}</span>
+        ${hw?`<button onclick="fsDel('foods','${f.id}').then(()=>notif('Removido','','warning'))" class="text-xs text-stone-400 hover:text-red-600">Excluir</button>`:''}
+      </div>
+    </div>`).join('') || '<p class="text-xs text-stone-400 text-center py-4">Despensa vazia.</p>';
+
+  const frzHtml = S.freezers.map(fr=>{
+    const items = S.foods.filter(f=>f.location===fr.id).map(f=>`
+      <div class="flex justify-between items-center py-2 border-b border-stone-100 last:border-0 text-xs">
+        <div><span class="font-medium text-stone-700 block">${f.name}</span><span class="text-[9px] text-stone-400">Vence: ${f.expiry}</span></div>
+        <div class="flex items-center gap-2"><span class="font-bold text-[10px]">${f.weight}</span>
+          ${hw?`<button onclick="fsDel('foods','${f.id}').then(()=>notif('Removido','','warning'))" class="text-xs text-stone-400 hover:text-red-600">Excluir</button>`:''}
+        </div>
+      </div>`).join('') || '<span class="text-xs text-stone-400 block py-4 text-center">Freezer vazio.</span>';
+    return `<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+      <div class="flex justify-between items-center border-b border-stone-100 pb-3 mb-3">
+        <span class="font-cinzel text-xs font-bold text-stone-900">❄️ ${fr.name}</span>
+        ${hw?`<button onclick="delFrz('${fr.id}')" class="text-[10px] text-red-500 font-semibold">Remover</button>`:''}
+      </div>
+      <div class="space-y-1 max-h-[180px] overflow-y-auto">${items}</div>
+    </div>`;
+  }).join('') || '<div class="col-span-full p-8 bg-white border border-dashed border-stone-200 rounded-2xl text-center text-stone-400 text-xs">Nenhum freezer cadastrado.</div>';
+
+  ws.innerHTML = `
+    <div class="mb-6 flex flex-col md:flex-row justify-between items-start gap-2">
+      <div><h1 class="font-cinzel text-2xl font-bold text-stone-900">Cozinha & Despensa</h1><p class="text-xs text-stone-500">Suprimentos e conservação para as festividades</p></div>
+      ${hw?`<div class="flex gap-2">
+        <button onclick="openFrzModal()" class="px-3 py-2 border border-stone-300 text-stone-700 text-xs font-bold rounded-xl hover:bg-stone-100 uppercase">Criar Freezer</button>
+        <button onclick="openFoodModal()" class="px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-xl uppercase shadow">Adicionar Alimento</button>
+      </div>`:''}
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-1 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
-            <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">Minha Coroa</h3>
-            <div class="space-y-3 text-xs">
-                <div class="bg-stone-50 p-3 rounded-xl border-l-4 border-amber-500"><span class="block text-[10px] text-stone-400 font-bold uppercase">Orixá de Frente</span><span class="text-sm font-bold text-stone-800">${c.orixaFrente||'Não alimentado'}</span></div>
-                <div class="bg-stone-50 p-3 rounded-xl border-l-4 border-stone-600"><span class="block text-[10px] text-stone-400 font-bold uppercase">Orixá de Juntó</span><span class="text-sm font-bold text-stone-800">${c.orixaJunto||'Não alimentado'}</span></div>
-                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-stone-100">${[['Exu',c.exu],['Pombagira',c.pombagira],['Caboclo',c.caboclo],['Preto Velho',c.pretoVelho]].map(([l,v])=>`<div><span class="block text-[10px] text-stone-400 uppercase">${l}</span><span class="text-xs font-semibold text-stone-800">${v||'—'}</span></div>`).join('')}</div>
-            </div>
-            ${pct!==null?`<div class="mt-4 pt-4 border-t border-stone-100"><h4 class="text-[10px] font-bold text-stone-500 uppercase mb-2">Minha Frequência</h4><div class="flex gap-3 text-xs"><div class="flex-1 bg-emerald-50 p-2 rounded-xl text-center"><span class="font-bold text-emerald-800 block text-sm">${myPres}</span><span class="text-emerald-600 text-[10px]">Presenças</span></div><div class="flex-1 bg-stone-50 p-2 rounded-xl text-center"><span class="font-bold text-stone-800 block text-sm">${pct}%</span><span class="text-stone-600 text-[10px]">Freq.</span></div></div></div>`:''}
-            <p class="text-[10px] text-stone-400 italic text-center mt-4 border-t border-stone-100 pt-3">Consulte a secretaria para atualizar sua ficha litúrgica.</p>
-        </div>
-        <div class="lg:col-span-1 space-y-6">
-            ${ng?`<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm"><span class="text-[10px] bg-amber-500/10 text-amber-800 border border-amber-500/20 font-bold px-2 py-0.5 rounded-lg uppercase">Próxima Gira</span><h4 class="font-cinzel text-md font-bold text-stone-900 mt-2 mb-3">${ng.line}</h4><div class="space-y-1.5 text-xs text-stone-600"><p><strong>Data:</strong> ${ng.date} às ${ng.time}</p><p><strong>Vestuário:</strong> ${ng.vestuario}</p><p class="italic bg-stone-50 p-2.5 rounded-lg border border-stone-200 mt-2">"${ng.recomendacoes||''}"</p></div></div>`:'<div class="bg-stone-100 p-6 rounded-2xl border border-dashed text-center text-xs text-stone-400">Sem trabalho escalado.</div>'}
-            <div class="bg-gradient-to-tr from-stone-900 to-stone-800 text-white p-5 rounded-2xl">
-                <h4 class="font-cinzel text-xs font-bold text-amber-400 uppercase mb-3">📜 Conselho de Pai José</h4>
-                <p id="quote-box" class="text-xs font-light leading-relaxed italic text-stone-200 py-4 border-t border-b border-white/10" style="transition:opacity .15s">"${curQuote}"</p>
-                <div class="mt-4 flex justify-end"><button onclick="rotateQuote()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-bold uppercase">Novo Conselho</button></div>
-            </div>
-        </div>
-        <div class="lg:col-span-1 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm flex flex-col">
-            <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">Minhas Contribuições</h3>
-            <div class="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200 mb-4 text-xs">
-                <span class="font-bold text-stone-700">Status:</span>
-                <span class="px-2 py-0.5 rounded font-bold text-[10px] ${u.duesStatus==='Em Dia'?'bg-emerald-50 text-emerald-800 border border-emerald-100':'bg-red-50 text-red-800 border border-red-100'}">${u.duesStatus||'—'}</span>
-            </div>
-            <div class="mb-4 bg-stone-50 p-4 rounded-xl border border-stone-200">
-                <h4 class="text-[10px] uppercase font-bold text-stone-400 mb-2 border-b border-stone-200 pb-1">Discriminação</h4>
-                ${dl.length?dl.map(d=>`<div class="flex justify-between items-center py-2 border-b border-stone-100 last:border-0 text-xs"><span class="text-stone-600">${d.item}</span><span class="font-bold text-stone-800">R$ ${(d.value||0).toFixed(2)}</span></div>`).join(''):'<p class="text-xs text-stone-400 text-center py-2">Sem pendências.</p>'}
-                <div class="flex justify-between border-t border-stone-200 pt-2 mt-2 text-xs"><span class="font-bold text-stone-900">Total</span><span class="font-extrabold text-amber-800 text-sm">R$ ${tot.toFixed(2)}</span></div>
-            </div>
-            ${S.config.pixKey?`<div class="p-4 bg-stone-50 rounded-xl border border-stone-200 text-center"><p class="text-[10px] text-stone-400 font-bold uppercase mb-2">Chave PIX Oficial</p><div class="flex items-center justify-center gap-1.5"><span id="pix-val" class="text-xs font-mono font-bold bg-white px-2.5 py-1 rounded border text-stone-600 select-all">${S.config.pixKey}</span><button onclick="copyPix()" class="px-2 py-1 bg-stone-200 hover:bg-stone-300 rounded text-[10px] font-bold">Copiar</button></div></div>`:''}
-            ${u.duesStatus!=='Em Dia'?`<p class="text-xs text-stone-500 italic text-center mt-3">Pague via PIX e aguarde confirmação da tesouraria.</p>`:`<p class="text-[10px] text-emerald-600 font-bold mt-4 text-center">✓ Todas as contribuições estão quitadas!</p>`}
-        </div>
+      <div class="lg:col-span-1 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+        <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">🌾 Despensa Seca</h3>
+        <div class="space-y-2 max-h-[450px] overflow-y-auto">${dry}</div>
+      </div>
+      <div class="lg:col-span-2 space-y-4">
+        <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-200 pb-2">Conservação / Freezers</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">${frzHtml}</div>
+      </div>
     </div>`;
 }
-function rotateQuote(){curQuote=QUOTES[Math.floor(Math.random()*QUOTES.length)];const b=document.getElementById('quote-box');if(b){b.style.opacity='0';setTimeout(()=>{b.innerText=`"${curQuote}"`;b.style.opacity='1';},150);}}
-function copyPix(){const k=document.getElementById('pix-val');if(k)navigator.clipboard.writeText(k.innerText).then(()=>notif('PIX Copiado','','success'));}
+function openFrzModal(){
+  openModal('Criar Freezer',`<form onsubmit="handleFrz(event)" class="space-y-4 text-xs">
+    <div><label class="block font-bold text-stone-500 uppercase mb-1">Nome</label><input type="text" id="fr-n" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+    <div class="pt-4 flex justify-end gap-2">
+      <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+      <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Salvar</button>
+    </div></form>`);
+}
+async function handleFrz(e){e.preventDefault();await fsAdd('freezers',{name:$('fr-n').value.trim()});closeModal();notif('Freezer criado','','success');}
+async function delFrz(id){if(S.foods.some(f=>f.location===id)){notif('Atenção','Esvazie antes de remover.','error');return;}await fsDel('freezers',id);notif('Removido','','warning');}
+function openFoodModal(){
+  const fOpts = S.freezers.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
+  openModal('Lançar Alimento',`<form onsubmit="handleFood(event)" class="space-y-4 text-xs">
+    <div><label class="block font-bold text-stone-500 uppercase mb-1">Nome</label><input type="text" id="fo-n" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+    <div class="grid grid-cols-2 gap-4">
+      <div><label class="block font-bold text-stone-500 uppercase mb-1">Peso/Medida</label><input type="text" id="fo-w" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+      <div><label class="block font-bold text-stone-500 uppercase mb-1">Validade</label><input type="date" id="fo-e" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+    </div>
+    <div><label class="block font-bold text-stone-500 uppercase mb-1">Local</label>
+      <select id="fo-l" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"><option value="Despensa Seca">Despensa Seca</option>${fOpts}</select>
+    </div>
+    <div class="pt-4 flex justify-end gap-2">
+      <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+      <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Lançar</button>
+    </div></form>`);
+}
+async function handleFood(e){e.preventDefault();await fsAdd('foods',{name:$('fo-n').value.trim(),weight:$('fo-w').value.trim(),expiry:$('fo-e').value,location:$('fo-l').value});closeModal();notif('Adicionado','','success');}
+</script>
+<script>
+// ══════════════════════════════════════════════════════
+// TECIDOS
+// ══════════════════════════════════════════════════════
+let fbSrch = '';
+function rTecidos(ws,hw){
+  const boxes = S.caixotes.map(box=>{
+    let fabs = S.fabrics.filter(f=>f.caixoteId===box.id);
+    if(fbSrch) fabs=fabs.filter(f=>f.pieceName?.toLowerCase().includes(fbSrch.toLowerCase())||f.line?.toLowerCase().includes(fbSrch.toLowerCase()));
+    const list = fabs.map(fb=>`
+      <div class="flex justify-between items-center py-2 border-b border-stone-100 last:border-0 text-xs">
+        <div><span class="font-bold text-stone-700 block">${fb.pieceName}</span><span class="text-[9px] text-stone-400">Cor: ${fb.color} | Linha: ${fb.line}</span></div>
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 rounded-full bg-stone-100 font-bold text-[10px]">${fb.quantity} peças</span>
+          ${hw?`<button onclick="fsDel('fabrics','${fb.id}').then(()=>notif('Removido','','warning'))" class="text-xs text-stone-400 hover:text-red-600">Remover</button>`:''}
+        </div>
+      </div>`).join('') || '<span class="text-xs text-stone-400 block py-4 text-center">Vazio.</span>';
+    return `<div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+      <button onclick="fsUpd('caixotes','${box.id}',{isOpen:${!box.isOpen}})" class="w-full flex justify-between items-center px-5 py-4 bg-stone-50/50 hover:bg-stone-50 focus:outline-none">
+        <div><h4 class="font-cinzel font-bold text-xs text-stone-900 text-left">${box.name}</h4><span class="text-[10px] text-stone-400">${fabs.length} peças cadastradas</span></div>
+        <span class="${box.isOpen?'rotate-180':''} transition-transform">▼</span>
+      </button>
+      <div class="${box.isOpen?'block':'hidden'} px-5 py-3">
+        <div class="space-y-2 mb-4 max-h-[220px] overflow-y-auto">${list}</div>
+        ${hw?`<button onclick="openFabModal('${box.id}')" class="w-full py-2 bg-stone-50 hover:bg-stone-100 text-stone-800 border border-dashed border-stone-200 font-bold rounded-xl text-xs">Adicionar neste caixote</button>`:''}
+      </div>
+    </div>`;
+  }).join('') || '<div class="col-span-full text-center text-xs py-8 text-stone-400">Nenhum caixote.</div>';
 
-// ════════════════════════════════════════════════════
-// ADMINISTRAÇÃO
-// ════════════════════════════════════════════════════
-function rAdmin(ws){
-    const canEdit=isMgr(S.me);
-    const rows=S.users.map(u=>`<tr class="hover:bg-stone-50/50 text-xs border-b border-stone-100">
-        <td class="px-4 py-3 font-bold text-stone-800">${u.name}</td>
-        <td class="px-4 py-3 text-stone-500 text-[10px] max-w-[120px] truncate">${u.email||'—'}</td>
-        <td class="px-4 py-3 font-bold text-amber-700 uppercase">${u.cargo}</td>
-        <td class="px-4 py-3"><span class="px-2 py-0.5 rounded font-bold text-[10px] ${u.duesStatus==='Em Dia'?'bg-emerald-50 text-emerald-800':'bg-red-50 text-red-800'}">${u.duesStatus||'—'}</span></td>
-        <td class="px-4 py-3 text-right"><div class="flex items-center justify-end gap-2">${canEdit?`<button onclick="openPermModal('${u.id}')" class="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-lg text-[10px]">Permissões</button><button onclick="openAdminReset('${u.email||''}')" class="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-lg text-[10px]">Reset Senha</button>`:''}</div></td>
-    </tr>`).join('');
-    ws.innerHTML=`
-    <div class="mb-6"><h1 class="font-cinzel text-2xl font-bold text-stone-900">Administração</h1><p class="text-xs text-stone-500">Usuários, permissões e configurações</p></div>
+  ws.innerHTML = `
+    <div class="mb-6 flex flex-col md:flex-row justify-between items-start gap-2">
+      <div><h1 class="font-cinzel text-2xl font-bold text-stone-900">Tecidos & Caixotes</h1><p class="text-xs text-stone-500">Vestuário litúrgico da corrente</p></div>
+      ${hw?`<button onclick="openCaixoteModal()" class="px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-xl uppercase shadow">Criar Caixote</button>`:''}
+    </div>
+    <div class="mb-6 max-w-md"><div class="relative">
+      <input type="text" value="${fbSrch}" oninput="fbSrch=this.value;render()" class="w-full pl-9 pr-4 py-2 bg-white border border-stone-200 rounded-xl text-xs focus:outline-none" placeholder="Buscar peça ou linha...">
+      <span class="absolute left-3.5 top-3 text-stone-400 text-xs">🔍</span>
+    </div></div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">${boxes}</div>`;
+}
+function openCaixoteModal(){
+  openModal('Criar Caixote',`<form onsubmit="handleCaixote(event)" class="space-y-4 text-xs">
+    <div><label class="block font-bold text-stone-500 uppercase mb-1">Nome do Caixote</label><input type="text" id="cx-n" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+    <div class="pt-4 flex justify-end gap-2">
+      <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+      <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Criar</button>
+    </div></form>`);
+}
+async function handleCaixote(e){e.preventDefault();await fsAdd('caixotes',{name:$('cx-n').value.trim(),isOpen:true});closeModal();notif('Caixote criado','','success');}
+function openFabModal(cid){
+  openModal('Lançar Peça',`<form onsubmit="handleFab(event,'${cid}')" class="space-y-4 text-xs">
+    <div><label class="block font-bold text-stone-500 uppercase mb-1">Nome da Peça</label><input type="text" id="fb-n" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+    <div class="grid grid-cols-2 gap-4">
+      <div><label class="block font-bold text-stone-500 uppercase mb-1">Cor</label><input type="text" id="fb-c" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+      <div><label class="block font-bold text-stone-500 uppercase mb-1">Linha Espiritual</label><input type="text" id="fb-l" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+    </div>
+    <div><label class="block font-bold text-stone-500 uppercase mb-1">Quantidade</label><input type="number" min="1" id="fb-q" required value="1" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+    <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+      <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+      <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Lançar</button>
+    </div></form>`);
+}
+async function handleFab(e,cid){e.preventDefault();await fsAdd('fabrics',{caixoteId:cid,pieceName:$('fb-n').value.trim(),color:$('fb-c').value.trim(),line:$('fb-l').value.trim(),quantity:parseInt($('fb-q').value)});closeModal();notif('Peça cadastrada','','success');}
+
+// ══════════════════════════════════════════════════════
+// SECRETARIA
+// ══════════════════════════════════════════════════════
+function rSec(ws,hw){
+  const notices = S.notices.length ? S.notices.map(n=>{
+    const b = n.level==='urgente'?'bg-red-50 text-red-800 border-red-100':n.level==='festividade'?'bg-amber-50 text-amber-800 border-amber-200':'bg-stone-100 text-stone-800 border-stone-200';
+    return `<div class="p-4 bg-stone-50 rounded-2xl border border-stone-200 flex justify-between items-start gap-3 text-xs">
+      <div>
+        <div class="flex items-center gap-2 mb-1"><span class="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase border ${b}">${n.level}</span><span class="text-stone-400">${n.date||''}</span></div>
+        <h4 class="font-bold text-stone-900 text-sm mb-1">${n.title}</h4>
+        <p class="text-slate-600 leading-relaxed font-light">${n.text}</p>
+      </div>
+      ${hw?`<button onclick="fsDel('notices','${n.id}').then(()=>notif('Removido','','warning'))" class="text-stone-400 hover:text-red-500 p-1.5 rounded-xl hover:bg-stone-100 shrink-0 text-lg">×</button>`:''}
+    </div>`;
+  }).join('') : '<div class="p-8 text-center text-stone-400 text-xs border border-dashed border-stone-200 rounded-xl">Sem comunicados.</div>';
+
+  ws.innerHTML = `
+    <div class="mb-6"><h1 class="font-cinzel text-2xl font-bold text-stone-900">Secretaria & Alertas</h1><p class="text-xs text-stone-500">Cronograma de giras e comunicados</p></div>
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div class="lg:col-span-5 space-y-6">
+        ${hw?`
+        <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+          <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">📅 Escalar Gira</h3>
+          <form onsubmit="handleGira(event)" class="space-y-4 text-xs">
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="block font-bold text-stone-500 uppercase mb-1">Data</label><input type="date" id="g-d" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+              <div><label class="block font-bold text-stone-500 uppercase mb-1">Hora</label><input type="time" id="g-h" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+            </div>
+            <div><label class="block font-bold text-stone-500 uppercase mb-1">Linha de Trabalho</label><input type="text" id="g-l" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none" placeholder="Ex: Gira de Pretos Velhos"></div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="block font-bold text-stone-500 uppercase mb-1">Dirigente</label><input type="text" id="g-dir" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+              <div><label class="block font-bold text-stone-500 uppercase mb-1">Vestuário</label><input type="text" id="g-v" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+            </div>
+            <div><label class="block font-bold text-stone-500 uppercase mb-1">Recomendações</label><textarea id="g-r" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none h-16"></textarea></div>
+            <button type="submit" class="w-full py-2.5 bg-stone-900 text-white font-bold rounded-xl uppercase">Confirmar Gira</button>
+          </form>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+          <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">📢 Publicar Alerta</h3>
+          <form onsubmit="handleNotice(event)" class="space-y-4 text-xs">
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="block font-bold text-stone-500 uppercase mb-1">Título</label><input type="text" id="n-t" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+              <div><label class="block font-bold text-stone-500 uppercase mb-1">Nível</label><select id="n-l" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"><option value="normal">Normal</option><option value="festividade">Festividade</option><option value="urgente">Urgente</option></select></div>
+            </div>
+            <div><label class="block font-bold text-stone-500 uppercase mb-1">Mensagem</label><textarea id="n-m" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none h-16"></textarea></div>
+            <button type="submit" class="w-full py-2.5 bg-stone-900 text-white font-bold rounded-xl uppercase">Publicar</button>
+          </form>
+        </div>
+        `:''}
+      </div>
+      <div class="lg:col-span-7 bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
+        <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">Quadro de Avisos</h3>
+        <div class="space-y-3 max-h-[600px] overflow-y-auto pr-1">${notices}</div>
+      </div>
+    </div>`;
+}
+async function handleGira(e){
+  e.preventDefault();
+  await fsAdd('schedule',{date:$('g-d').value,time:$('g-h').value,line:$('g-l').value.trim(),dirigente:$('g-dir').value.trim(),vestuario:$('g-v').value.trim(),recomendacoes:$('g-r').value.trim()});
+  await addLog(`Escalou gira: ${$('g-l').value}`);
+  e.target.reset(); notif('Gira escalada!','Cronograma atualizado.','success');
+}
+async function handleNotice(e){
+  e.preventDefault();
+  await fsAdd('notices',{title:$('n-t').value.trim(),text:$('n-m').value.trim(),level:$('n-l').value,date:new Date().toISOString().split('T')[0]});
+  await addLog('Publicou comunicado');
+  e.target.reset(); notif('Comunicado publicado','','success');
+}
+
+// ══════════════════════════════════════════════════════
+// MÉDIUNS
+// ══════════════════════════════════════════════════════
+function rMediuns(ws,hw){
+  const cards = S.users.map(m=>{
+    const c = m.crown||{};
+    return `<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm text-xs flex flex-col">
+      <div class="flex justify-between items-start mb-3 border-b border-stone-100 pb-2">
+        <div><h4 class="font-bold text-stone-900 text-sm">${m.name}</h4><span class="text-[10px] text-stone-500 uppercase">${m.cargo}</span></div>
+        <span class="px-2 py-0.5 rounded font-bold text-[9px] ${m.duesStatus==='Em Dia'?'bg-emerald-50 text-emerald-800':'bg-red-50 text-red-800'}">${m.duesStatus||'—'}</span>
+      </div>
+      <div class="space-y-1.5 text-stone-600 mb-4 flex-1">
+        ${[['Orixá de Frente',c.orixaFrente,'font-bold text-amber-800'],['Orixá de Juntó',c.orixaJunto,''],['Exu',c.exu,''],['Pombagira',c.pombagira,''],['Caboclo',c.caboclo,''],['Boiadeiro',c.boiadeiro,''],['Erê',c.ere,''],['Preto Velho',c.pretoVelho,'']].map(([l,v,cls])=>`<p class="flex justify-between gap-2"><strong>${l}:</strong><span class="${cls} text-right">${v||'—'}</span></p>`).join('')}
+        ${m.birthday?`<p class="flex justify-between border-t border-stone-100 pt-1.5 mt-1.5"><strong>Aniversário:</strong><span>${new Date(m.birthday+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})}</span></p>`:''}
+      </div>
+      ${hw?`<button onclick="openCrownModal('${m.id}')" class="w-full py-2 bg-stone-50 hover:bg-stone-100 text-amber-900 font-bold rounded-xl border border-stone-200 mt-auto">Editar Ficha</button>`:''}
+    </div>`;
+  }).join('');
+  ws.innerHTML = `
+    <div class="mb-6"><h1 class="font-cinzel text-2xl font-bold text-stone-900">Corpo de Médiuns</h1><p class="text-xs text-stone-500">Controle litúrgico, coroas e guias de trabalho</p></div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">${cards}</div>`;
+}
+function openCrownModal(uid){
+  const u=S.users.find(x=>x.id===uid); if(!u) return; const c=u.crown||{};
+  const fields=[['Orixá de Frente','cf',c.orixaFrente],['Orixá de Juntó','cj',c.orixaJunto],['Exu','ce',c.exu],['Pombagira','cp',c.pombagira],['Caboclo','cc',c.caboclo],['Boiadeiro','cb',c.boiadeiro],['Erê','cr',c.ere],['Preto Velho','cv',c.pretoVelho]];
+  openModal(`Ficha: ${u.name}`,`<form onsubmit="handleCrown(event,'${uid}')" class="space-y-4 text-xs">
+    <div class="grid grid-cols-2 gap-3">${fields.map(([l,id,v])=>`<div><label class="block font-bold text-stone-500 uppercase mb-1">${l}</label><input type="text" id="${id}" value="${v||''}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>`).join('')}</div>
+    <div><label class="block font-bold text-stone-500 uppercase mb-1">Aniversário</label><input type="date" id="cbd" value="${u.birthday||''}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+    <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+      <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+      <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Atualizar</button>
+    </div></form>`);
+}
+async function handleCrown(e,uid){
+  e.preventDefault();
+  const crown={orixaFrente:$('cf').value.trim(),orixaJunto:$('cj').value.trim(),exu:$('ce').value.trim(),pombagira:$('cp').value.trim(),caboclo:$('cc').value.trim(),boiadeiro:$('cb').value.trim(),ere:$('cr').value.trim(),pretoVelho:$('cv').value.trim()};
+  const bday=$('cbd').value;
+  await fsUpd('users',uid,{crown,birthday:bday});
+  if(S.me.id===uid){S.me.crown=crown;S.me.birthday=bday;}
+  await addLog('Atualizou ficha de médium');
+  closeModal(); notif('Ficha atualizada','','success');
+}
+</script>
+<script>
+// ══════════════════════════════════════════════════════
+// PRESENÇA
+// ══════════════════════════════════════════════════════
+let presGira = null;
+function rPresenca(ws, hw) {
+  const giras = [...S.schedule].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  if (!presGira && giras.length) presGira = giras[0].id;
+  const gira = giras.find(g=>g.id===presGira);
+  if (!giras.length) {
+    ws.innerHTML = `<div class="mb-6"><h1 class="font-cinzel text-2xl font-bold text-stone-900">Lista de Presença</h1></div>
+      <div class="bg-white p-12 rounded-2xl border border-dashed border-stone-200 text-center">
+        <p class="text-stone-400 text-sm mb-3">Nenhuma gira escalada ainda.</p>
+        <button onclick="switchTab('secretaria')" class="px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-xl uppercase">Ir para Secretaria</button>
+      </div>`; return;
+  }
+  let pres=0, falt=0;
+  const listHtml = S.users.map(m=>{
+    const reg = S.presencas.find(p=>p.scheduleId===presGira&&p.userId===m.id);
+    const p = reg ? reg.presente : null;
+    if (p===true) pres++; else if (p===false) falt++;
+    return `<div class="flex items-center justify-between p-4 rounded-2xl border border-stone-100 bg-white text-xs hover:border-stone-200 transition-all">
+      <div class="flex-1 min-w-0 pr-4">
+        <span class="font-bold text-stone-800 block">${m.name}</span>
+        <span class="text-[10px] text-stone-400 uppercase">${m.cargo}</span>
+      </div>
+      ${hw ? `<div class="flex items-center gap-2 shrink-0">
+        <button onclick="setPresenca('${presGira}','${m.id}',true)" class="px-3 py-1.5 rounded-xl font-bold text-[10px] ${p===true?'bg-emerald-500 text-white':'bg-stone-100 text-stone-600 hover:bg-emerald-50 hover:text-emerald-700'}">✓ Presente</button>
+        <button onclick="setPresenca('${presGira}','${m.id}',false)" class="px-3 py-1.5 rounded-xl font-bold text-[10px] ${p===false?'bg-red-500 text-white':'bg-stone-100 text-stone-600 hover:bg-red-50 hover:text-red-700'}">✗ Faltou</button>
+        ${p!==null?`<button onclick="clearPres('${presGira}','${m.id}')" class="px-2 py-1.5 rounded-xl font-bold text-[10px] bg-stone-100 text-stone-500 hover:bg-stone-200">—</button>`:''}
+      </div>` : `<span class="px-2 py-1 rounded-xl font-bold text-[10px] ${p===true?'bg-emerald-50 text-emerald-800':p===false?'bg-red-50 text-red-800':'bg-stone-100 text-stone-500'}">${p===true?'✓ Presente':p===false?'✗ Faltou':'Não registrado'}</span>`}
+    </div>`;
+  }).join('');
+
+  const freqHtml = S.users.map(m=>{
+    const regs = S.presencas.filter(p=>p.userId===m.id);
+    const pct  = regs.length ? Math.round(regs.filter(p=>p.presente).length/regs.length*100) : null;
+    return `<div class="flex items-center justify-between py-2 border-b border-stone-100 last:border-0 text-xs">
+      <span class="text-stone-700 truncate pr-2">${m.name}</span>
+      ${pct!==null ? `<div class="flex items-center gap-2 shrink-0">
+        <div class="w-16 bg-stone-100 rounded-full h-1.5"><div class="${pct>=75?'bg-emerald-500':pct>=50?'bg-amber-500':'bg-red-500'} h-1.5 rounded-full" style="width:${pct}%"></div></div>
+        <span class="font-bold text-stone-700 w-8 text-right">${pct}%</span>
+      </div>` : `<span class="text-stone-400 text-[10px]">Sem dados</span>`}
+    </div>`;
+  }).join('');
+
+  ws.innerHTML = `
+    <div class="mb-6"><h1 class="font-cinzel text-2xl font-bold text-stone-900">Lista de Presença</h1><p class="text-xs text-stone-500">Frequência por gira</p></div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-1 space-y-6">
-            <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
-                <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">Identidade do Terreiro</h3>
-                <form onsubmit="handleConfig(event)" class="space-y-4 text-xs">
-                    <div><label class="block font-bold text-stone-500 uppercase mb-1">Nome Oficial</label><input type="text" id="cfg-n" value="${S.config.terreiroName||''}" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-                    <div><label class="block font-bold text-stone-500 uppercase mb-1">Subtítulo</label><input type="text" id="cfg-s" value="${S.config.subtitle||''}" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-                    <div><label class="block font-bold text-stone-500 uppercase mb-1">Chave PIX</label><input type="text" id="cfg-p" value="${S.config.pixKey||''}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-                    <div><label class="block font-bold text-stone-500 uppercase mb-1">URL da Logo</label><input type="url" id="cfg-l" value="${S.config.logoUrl||''}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none" placeholder="https://..."></div>
-                    <button type="submit" class="w-full py-2 bg-stone-900 text-white font-bold rounded-xl uppercase">Salvar</button>
-                </form>
+      <div class="lg:col-span-2 space-y-4">
+        <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4 pb-4 border-b border-stone-100">
+            <div>
+              <h3 class="font-cinzel text-sm font-bold text-stone-900">Registro de Presença</h3>
+              ${gira?`<p class="text-xs text-stone-500 mt-1">${gira.line} — ${gira.date}</p>`:''}
             </div>
-            ${canEdit?`<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
-                <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-3">Cadastrar Médium</h3>
-                <p class="text-xs text-stone-500 mb-4 leading-relaxed">Crie o usuário no Firebase Console → Authentication → Add user. Depois volte aqui e clique no botão para criar o perfil.</p>
-                <button onclick="openCreateProfile()" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold rounded-xl text-xs uppercase">Criar Perfil de Médium</button>
-            </div>`:''}
+            <select onchange="presGira=this.value;render()" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:outline-none font-bold">
+              ${giras.map(g=>`<option value="${g.id}" ${g.id===presGira?'selected':''}>${g.date} — ${g.line}</option>`).join('')}
+            </select>
+          </div>
+          <div class="flex gap-3 mb-4 text-xs">
+            <div class="px-3 py-2 bg-emerald-50 rounded-xl text-emerald-800 font-bold border border-emerald-100">✓ Presentes: ${pres}</div>
+            <div class="px-3 py-2 bg-red-50 rounded-xl text-red-800 font-bold border border-red-100">✗ Faltas: ${falt}</div>
+            <div class="px-3 py-2 bg-stone-50 rounded-xl text-stone-600 font-bold border border-stone-200">? Pendente: ${S.users.length-pres-falt}</div>
+          </div>
+          <div class="space-y-2">${listHtml}</div>
+          ${hw?`<div class="mt-4 pt-4 border-t border-stone-100">
+            <button onclick="marcarTodos('${presGira}')" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl">✓ Marcar Todos Presentes</button>
+          </div>`:''}
         </div>
-        <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
-            <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-4 mb-4">Médiuns Cadastrados</h3>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead><tr class="bg-stone-50 text-[10px] font-bold uppercase tracking-wider text-stone-400 border-b border-stone-200"><th class="px-4 py-3">Nome</th><th class="px-4 py-3">E-mail</th><th class="px-4 py-3">Cargo</th><th class="px-4 py-3">Status</th><th class="px-4 py-3"></th></tr></thead>
-                    <tbody>${rows}</tbody>
-                </table>
-            </div>
+      </div>
+      <div class="space-y-6">
+        ${gira?`<div class="bg-gradient-to-br from-stone-900 to-stone-800 text-white p-5 rounded-2xl">
+          <span class="text-[10px] bg-amber-500 text-stone-950 font-bold px-2 py-0.5 rounded-lg uppercase mb-2 inline-block">Gira Selecionada</span>
+          <h4 class="font-cinzel text-sm font-bold text-amber-400 mt-1">${gira.line}</h4>
+          <div class="mt-3 space-y-1.5 text-xs text-stone-200">
+            <p><strong class="text-stone-300">Data:</strong> ${gira.date}</p>
+            <p><strong class="text-stone-300">Hora:</strong> ${gira.time}</p>
+            <p><strong class="text-stone-300">Dirigente:</strong> ${gira.dirigente}</p>
+            <p><strong class="text-stone-300">Vestuário:</strong> ${gira.vestuario}</p>
+          </div>
+        </div>`:''}
+        <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+          <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">Frequência Histórica</h3>
+          <div class="space-y-1 max-h-72 overflow-y-auto">${freqHtml}</div>
         </div>
+      </div>
+    </div>`;
+}
+async function setPresenca(sid, uid, presente) {
+  const ex = S.presencas.find(p=>p.scheduleId===sid&&p.userId===uid);
+  if (ex) await fsUpd('presencas', ex.id, {presente});
+  else    await fsAdd('presencas', {scheduleId:sid, userId:uid, presente});
+}
+async function clearPres(sid, uid) {
+  const ex = S.presencas.find(p=>p.scheduleId===sid&&p.userId===uid);
+  if (ex) await fsDel('presencas', ex.id);
+}
+async function marcarTodos(sid) {
+  const batch = FB().writeBatch(db());
+  S.users.forEach(u=>{
+    const ex = S.presencas.find(p=>p.scheduleId===sid&&p.userId===u.id);
+    if (ex) batch.update(FB().doc(db(),'presencas',ex.id), {presente:true, _ts:ts()});
+    else    batch.set(FB().doc(db(),'presencas',`pr_${sid}_${u.id}`), {scheduleId:sid, userId:u.id, presente:true, _ts:ts()});
+  });
+  await batch.commit();
+  notif('Todos marcados como presentes!','','success');
+}
+
+// ══════════════════════════════════════════════════════
+// HUB DO MÉDIUM
+// ══════════════════════════════════════════════════════
+const QUOTES = [
+  'Fio, a paciência é uma semente que custa a crescer, mas que dá os frutos mais doces.',
+  'Não olhe para trás. O sol nasce todos os dias para clarear os caminhos da gente.',
+  'A humildade é a chave que abre todas as portas do céu.',
+  'Seja como a cana: quanto mais espremida, mais caldo doce ela dá.',
+  'As maiores batalhas são vencidas de joelhos, com fé e oração.',
+  'A Umbanda não é lugar para orgulho. Veste-se branco para mostrar que na alma todos somos iguais.',
+  'O vento que venta lá fora é o mesmo que traz o axé aqui pra dentro, fio.'
+];
+let curQ = QUOTES[0];
+
+function rHub(ws) {
+  const u  = S.me, c = u.crown||{};
+  const ng = [...S.schedule].sort((a,b)=>(a.date||'').localeCompare(b.date||''))[0];
+  const dl = u.duesItems||[], tot = dl.reduce((a,i)=>a+(i.value||0),0);
+  const myP = S.presencas.filter(p=>p.userId===u.id);
+  const myPres = myP.filter(p=>p.presente).length;
+  const pct = myP.length ? Math.round(myPres/myP.length*100) : null;
+
+  ws.innerHTML = `
+    <div class="mb-6 flex flex-col md:flex-row justify-between items-start gap-2">
+      <div><h1 class="font-cinzel text-2xl font-bold text-stone-900">Área do Médium</h1><p class="text-xs text-stone-500">Seu diário espiritual e controle de obrigações</p></div>
+      <button onclick="openChangePwdModal()" class="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl uppercase sm-t flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+        Alterar Minha Senha
+      </button>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- COROA -->
+      <div class="lg:col-span-1 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+        <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">Minha Coroa & Protetores</h3>
+        <div class="space-y-3 text-xs">
+          <div class="bg-stone-50 p-3 rounded-xl border-l-4 border-amber-500">
+            <span class="block text-[10px] text-stone-400 font-bold uppercase">Orixá de Frente</span>
+            <span class="text-sm font-bold text-stone-800">${c.orixaFrente||'Não alimentado'}</span>
+          </div>
+          <div class="bg-stone-50 p-3 rounded-xl border-l-4 border-stone-600">
+            <span class="block text-[10px] text-stone-400 font-bold uppercase">Orixá de Juntó</span>
+            <span class="text-sm font-bold text-stone-800">${c.orixaJunto||'Não alimentado'}</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2 pt-2 border-t border-stone-100">
+            ${[['Exu',c.exu],['Pombagira',c.pombagira],['Caboclo',c.caboclo],['Boiadeiro',c.boiadeiro],['Erê',c.ere],['Preto Velho',c.pretoVelho]].map(([l,v])=>`<div><span class="block text-[10px] text-stone-400 uppercase">${l}</span><span class="text-xs font-semibold text-stone-800">${v||'—'}</span></div>`).join('')}
+          </div>
+        </div>
+        ${pct!==null?`<div class="mt-4 pt-4 border-t border-stone-100">
+          <h4 class="text-[10px] font-bold text-stone-500 uppercase mb-2">Minha Frequência</h4>
+          <div class="flex gap-3 text-xs">
+            <div class="flex-1 bg-emerald-50 p-2 rounded-xl text-center"><span class="font-bold text-emerald-800 block text-sm">${myPres}</span><span class="text-emerald-600 text-[10px]">Presenças</span></div>
+            <div class="flex-1 bg-stone-50 p-2 rounded-xl text-center"><span class="font-bold text-stone-800 block text-sm">${pct}%</span><span class="text-stone-600 text-[10px]">Frequência</span></div>
+          </div>
+        </div>`:''}
+        <p class="text-[10px] text-stone-400 italic text-center mt-4 border-t border-stone-100 pt-3">Consulte a secretaria para atualizar sua ficha.</p>
+      </div>
+
+      <!-- PRÓXIMA GIRA + CONSELHO -->
+      <div class="lg:col-span-1 space-y-6">
+        ${ng?`<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+          <span class="text-[10px] bg-amber-500/10 text-amber-800 border border-amber-500/20 font-bold px-2 py-0.5 rounded-lg uppercase">Próxima Gira</span>
+          <h4 class="font-cinzel text-md font-bold text-stone-900 mt-2 mb-3">${ng.line}</h4>
+          <div class="space-y-1.5 text-xs text-stone-600">
+            <p><strong>Data:</strong> ${ng.date} às ${ng.time}</p>
+            <p><strong>Vestuário:</strong> ${ng.vestuario}</p>
+            <p class="italic bg-stone-50 p-2.5 rounded-lg border border-stone-200 mt-2">"${ng.recomendacoes||''}"</p>
+          </div>
+        </div>`:'<div class="bg-stone-100 p-6 rounded-2xl border border-dashed text-center text-xs text-stone-400">Nenhum trabalho escalado.</div>'}
+        <div class="bg-gradient-to-tr from-stone-900 to-stone-800 text-white p-5 rounded-2xl">
+          <h4 class="font-cinzel text-xs font-bold text-amber-400 uppercase mb-3">📜 Conselho de Pai José</h4>
+          <p id="quote-box" class="text-xs font-light leading-relaxed italic text-stone-200 py-4 border-t border-b border-white/10" style="transition:opacity .15s">"${curQ}"</p>
+          <div class="mt-4 flex justify-end">
+            <button onclick="rotateQ()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-bold uppercase">Novo Conselho</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTRIBUIÇÕES -->
+      <div class="lg:col-span-1 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm flex flex-col">
+        <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">Minhas Contribuições</h3>
+        <div class="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200 mb-4 text-xs">
+          <span class="font-bold text-stone-700">Status:</span>
+          <span class="px-2 py-0.5 rounded font-bold text-[10px] ${u.duesStatus==='Em Dia'?'bg-emerald-50 text-emerald-800 border border-emerald-100':'bg-red-50 text-red-800 border border-red-100'}">${u.duesStatus||'—'}</span>
+        </div>
+        <div class="mb-4 bg-stone-50 p-4 rounded-xl border border-stone-200">
+          <h4 class="text-[10px] uppercase font-bold text-stone-400 mb-2 border-b border-stone-200 pb-1">Discriminação</h4>
+          ${dl.length ? dl.map(d=>`<div class="flex justify-between items-center py-2 border-b border-stone-100 last:border-0 text-xs"><span class="text-stone-600">${d.item}</span><span class="font-bold text-stone-800">R$ ${(d.value||0).toFixed(2)}</span></div>`).join('') : '<p class="text-xs text-stone-400 text-center py-2">Sem pendências.</p>'}
+          <div class="flex justify-between border-t border-stone-200 pt-2 mt-2 text-xs">
+            <span class="font-bold text-stone-900">Total</span>
+            <span class="font-extrabold text-amber-800 text-sm">R$ ${tot.toFixed(2)}</span>
+          </div>
+        </div>
+        ${S.cfg.pixKey?`<div class="p-4 bg-stone-50 rounded-xl border border-stone-200 text-center">
+          <p class="text-[10px] text-stone-400 font-bold uppercase mb-2">Chave PIX Oficial</p>
+          <div class="flex items-center justify-center gap-1.5">
+            <span id="pix-val" class="text-xs font-mono font-bold bg-white px-2.5 py-1 rounded border text-stone-600 select-all">${S.cfg.pixKey}</span>
+            <button onclick="copyPix()" class="px-2 py-1 bg-stone-200 hover:bg-stone-300 rounded text-[10px] font-bold">Copiar</button>
+          </div>
+        </div>`:''}
+        ${u.duesStatus!=='Em Dia' ? `<p class="text-xs text-stone-500 italic text-center mt-3">Realize o pagamento via PIX e aguarde a confirmação.</p>` : `<p class="text-[10px] text-emerald-600 font-bold mt-4 text-center">✓ Todas as contribuições estão em dia!</p>`}
+      </div>
+    </div>`;
+}
+function rotateQ() {
+  curQ = QUOTES[Math.floor(Math.random()*QUOTES.length)];
+  const b = $('quote-box');
+  if (b) { b.style.opacity='0'; setTimeout(()=>{ b.innerText=`"${curQ}"`; b.style.opacity='1'; },150); }
+}
+function copyPix() {
+  const k = $('pix-val');
+  if (k) navigator.clipboard.writeText(k.innerText).then(()=>notif('PIX Copiado!','','success'));
+}
+</script>
+<script>
+// ══════════════════════════════════════════════════════
+// ADMINISTRAÇÃO
+// ══════════════════════════════════════════════════════
+function rAdmin(ws) {
+  const canEdit = isMgr(S.me);
+  const rows = S.users.map(u=>`
+    <tr class="hover:bg-stone-50/50 text-xs border-b border-stone-100">
+      <td class="px-4 py-3 font-bold text-stone-800">${u.name}</td>
+      <td class="px-4 py-3 text-stone-500 text-[10px] max-w-[120px] truncate">${u.email||'—'}</td>
+      <td class="px-4 py-3 font-bold text-amber-700 uppercase">${u.cargo}</td>
+      <td class="px-4 py-3">
+        <span class="px-2 py-0.5 rounded font-bold text-[10px] ${u.duesStatus==='Em Dia'?'bg-emerald-50 text-emerald-800':'bg-red-50 text-red-800'}">${u.duesStatus||'—'}</span>
+      </td>
+      <td class="px-4 py-3 text-right">
+        <div class="flex items-center justify-end gap-2">
+          ${canEdit?`
+            <button onclick="openPermModal('${u.id}')" class="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-lg text-[10px]">Permissões</button>
+            <button onclick="openAdminReset('${u.email||''}')" class="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-lg text-[10px]">Reset Senha</button>
+          `:''}
+        </div>
+      </td>
+    </tr>`).join('');
+
+  ws.innerHTML = `
+    <div class="mb-6"><h1 class="font-cinzel text-2xl font-bold text-stone-900">Administração</h1><p class="text-xs text-stone-500">Usuários, permissões e configurações do terreiro</p></div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <div class="lg:col-span-1 space-y-6">
+        <!-- Config do terreiro -->
+        <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+          <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">Identidade do Terreiro</h3>
+          <form onsubmit="handleCfg(event)" class="space-y-4 text-xs">
+            <div><label class="block font-bold text-stone-500 uppercase mb-1">Nome Oficial</label>
+              <input type="text" id="cfg-n" value="${S.cfg.terreiroName||''}" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+            <div><label class="block font-bold text-stone-500 uppercase mb-1">Subtítulo</label>
+              <input type="text" id="cfg-s" value="${S.cfg.subtitle||''}" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+            <div><label class="block font-bold text-stone-500 uppercase mb-1">Chave PIX</label>
+              <input type="text" id="cfg-p" value="${S.cfg.pixKey||''}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+            <div><label class="block font-bold text-stone-500 uppercase mb-1">URL da Logo</label>
+              <input type="url" id="cfg-l" value="${S.cfg.logoUrl||''}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none" placeholder="https://..."></div>
+            <button type="submit" class="w-full py-2 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl uppercase sm-t">Salvar Configurações</button>
+          </form>
+        </div>
+
+        <!-- Cadastrar novo médium -->
+        ${canEdit?`<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+          <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-3">Cadastrar Médium</h3>
+          <p class="text-xs text-stone-500 mb-4 leading-relaxed">
+            Primeiro crie o usuário no
+            <a href="https://console.firebase.google.com" target="_blank" class="text-amber-700 font-bold underline">Firebase Console</a>
+            → Authentication → Add user.<br>
+            Depois clique abaixo para criar o perfil no sistema.
+          </p>
+          <button onclick="openCreateProfile()" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold rounded-xl text-xs uppercase sm-t">Criar Perfil de Médium</button>
+        </div>`:''}
+      </div>
+
+      <!-- Tabela de médiuns -->
+      <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+        <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-4 mb-4">Médiuns Cadastrados</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead><tr class="bg-stone-50 text-[10px] font-bold uppercase tracking-wider text-stone-400 border-b border-stone-200">
+              <th class="px-4 py-3">Nome</th><th class="px-4 py-3">E-mail</th>
+              <th class="px-4 py-3">Cargo</th><th class="px-4 py-3">Status</th><th class="px-4 py-3"></th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
     </div>`;
 }
 
-async function handleConfig(e){
-    e.preventDefault();
-    await fsSet('config','main',{terreiroName:document.getElementById('cfg-n').value.trim(),subtitle:document.getElementById('cfg-s').value.trim(),pixKey:document.getElementById('cfg-p').value.trim(),logoUrl:document.getElementById('cfg-l').value.trim()});
-    await addLog('Atualizou configurações do terreiro');
-    notif('Configurações salvas','','success');
+async function handleCfg(e) {
+  e.preventDefault();
+  await fsSet('config','main',{
+    terreiroName: $('cfg-n').value.trim(),
+    subtitle:     $('cfg-s').value.trim(),
+    pixKey:       $('cfg-p').value.trim(),
+    logoUrl:      $('cfg-l').value.trim()
+  });
+  await addLog('Atualizou configurações do terreiro');
+  notif('Configurações salvas!','','success');
 }
 
-function openPermModal(uid){
-    const u=S.users.find(x=>x.id===uid); if(!u) return;
-    const cargos=['ADMIN','PRESIDENTE','TESOUREIRO','SECRETARIA','CAMBONAGEM','COZINHA','TECIDOS','MEDIUM'];
-    const checks=Object.keys(TABS).map(t=>`<label class="flex items-center gap-2 p-1.5 bg-stone-50 rounded-xl hover:bg-stone-100 cursor-pointer"><input type="checkbox" name="pt" value="${t}" ${(u.allowedTabs||[]).includes(t)?'checked':''} class="w-3.5 h-3.5 accent-amber-600"><span class="text-[10px] font-medium">${TABS[t].label}</span></label>`).join('');
-    openModal(`Permissões: ${u.name}`,`<form onsubmit="handlePerm(event,'${uid}')" class="space-y-4 text-xs">
+function openPermModal(uid) {
+  const u = S.users.find(x=>x.id===uid); if (!u) return;
+  const checks = Object.keys(TABS).map(t=>`
+    <label class="flex items-center gap-2 p-1.5 bg-stone-50 rounded-xl hover:bg-stone-100 cursor-pointer">
+      <input type="checkbox" name="pt" value="${t}" ${(u.allowedTabs||[]).includes(t)?'checked':''} class="w-3.5 h-3.5 accent-amber-600">
+      <span class="text-[10px] font-medium">${TABS[t].label}</span>
+    </label>`).join('');
+  openModal(`Permissões: ${u.name}`,`
+    <form onsubmit="handlePerm(event,'${uid}')" class="space-y-4 text-xs">
+      <div><label class="block font-bold text-stone-500 uppercase mb-1">Cargo</label>
+        <select id="pm-c" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+          ${CARGOS.map(c=>`<option ${u.cargo===c?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
+      <div><label class="block font-bold text-stone-500 uppercase mb-2">Módulos Liberados</label>
+        <div class="grid grid-cols-2 gap-1 max-h-52 overflow-y-auto">${checks}</div>
+      </div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Salvar</button>
+      </div>
+    </form>`);
+}
+
+async function handlePerm(e, uid) {
+  e.preventDefault();
+  const cargo = $('pm-c').value;
+  const tabs  = [...document.getElementsByName('pt')].filter(c=>c.checked).map(c=>c.value);
+  await fsUpd('users', uid, {cargo, allowedTabs:tabs});
+  await addLog('Atualizou permissões de médium');
+  closeModal(); notif('Permissões atualizadas!','','success');
+}
+
+function openAdminReset(email) {
+  if (!email) { notif('Erro','Este médium não tem e-mail cadastrado.','error'); return; }
+  openModal('Resetar Senha',`
+    <div class="space-y-4 text-xs">
+      <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 leading-relaxed">
+        Um link de redefinição será enviado para <strong>${email}</strong>.<br>
+        O médium poderá criar uma nova senha pelo link recebido.
+      </div>
+      <div class="pt-4 flex justify-end gap-2">
+        <button onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button onclick="sendReset('${email}')" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Enviar Link</button>
+      </div>
+    </div>`);
+}
+
+async function sendReset(email) {
+  try {
+    await FB().sendPasswordResetEmail(au(), email);
+    closeModal();
+    notif('E-mail enviado!',`Link enviado para ${email}`,'success');
+    await addLog(`Enviou reset de senha para ${email}`);
+  } catch(err) { notif('Erro',err.message,'error'); }
+}
+
+function openCreateProfile() {
+  const checks = Object.keys(TABS).map(t=>`
+    <label class="flex items-center gap-2 p-1.5 bg-stone-50 rounded-xl hover:bg-stone-100 cursor-pointer">
+      <input type="checkbox" name="np" value="${t}" class="w-3.5 h-3.5 accent-amber-600">
+      <span class="text-[10px] font-medium">${TABS[t].label}</span>
+    </label>`).join('');
+  openModal('Criar Perfil de Médium',`
+    <form onsubmit="handleCreateProfile(event)" class="space-y-4 text-xs">
+      <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 leading-relaxed">
+        <strong>Passo 1:</strong> Acesse o
+        <a href="https://console.firebase.google.com" target="_blank" class="underline font-bold">Firebase Console</a>
+        → Authentication → Add user → crie com e-mail e senha.<br>
+        <strong>Passo 2:</strong> Copie o <strong>UID</strong> gerado e cole abaixo.
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="block font-bold text-stone-500 uppercase mb-1">Nome Completo</label>
+          <input type="text" id="np-name" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+        <div><label class="block font-bold text-stone-500 uppercase mb-1">UID do Firebase</label>
+          <input type="text" id="np-uid" required placeholder="Cole o UID aqui" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="block font-bold text-stone-500 uppercase mb-1">E-mail</label>
+          <input type="email" id="np-email" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
         <div><label class="block font-bold text-stone-500 uppercase mb-1">Cargo</label>
-            <select id="pm-c" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">${cargos.map(c=>`<option ${u.cargo===c?'selected':''}>${c}</option>`).join('')}</select></div>
-        <div><label class="block font-bold text-stone-500 uppercase mb-2">Módulos Liberados</label>
-            <div class="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto">${checks}</div></div>
-        <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
-            <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
-            <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Salvar</button>
-        </div></form>`);
-}
-async function handlePerm(e,uid){
-    e.preventDefault();
-    const cargo=document.getElementById('pm-c').value;
-    const tabs=[...document.getElementsByName('pt')].filter(c=>c.checked).map(c=>c.value);
-    await fsUpd('users',uid,{cargo,allowedTabs:tabs});
-    await addLog('Atualizou permissões de médium');
-    closeModal(); notif('Permissões atualizadas','','success');
+          <select id="np-cargo" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+            ${CARGOS.map(c=>`<option>${c}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div><label class="block font-bold text-stone-500 uppercase mb-2">Módulos Liberados</label>
+        <div class="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">${checks}</div>
+      </div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Criar Perfil</button>
+      </div>
+    </form>`);
 }
 
-function openAdminReset(email){
-    if(!email){notif('Erro','Este médium não tem e-mail cadastrado.','error');return;}
-    openModal('Resetar Senha',`<div class="space-y-4 text-xs">
-        <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800">Um link de redefinição será enviado para <strong>${email}</strong>.</div>
-        <div class="pt-4 flex justify-end gap-2">
-            <button onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
-            <button onclick="sendReset('${email}')" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Enviar Link</button>
-        </div></div>`);
-}
-async function sendReset(email){
-    try{await fb().sendPasswordResetEmail(au(),email);closeModal();notif('E-mail enviado',`Link enviado para ${email}`,'success');await addLog(`Enviou reset de senha para ${email}`);}
-    catch(err){notif('Erro',err.message,'error');}
-}
-
-function openCreateProfile(){
-    const cargos=['ADMIN','PRESIDENTE','TESOUREIRO','SECRETARIA','CAMBONAGEM','COZINHA','TECIDOS','MEDIUM'];
-    const checks=Object.keys(TABS).map(t=>`<label class="flex items-center gap-2 p-1.5 bg-stone-50 rounded-xl hover:bg-stone-100 cursor-pointer"><input type="checkbox" name="np" value="${t}" class="w-3.5 h-3.5 accent-amber-600"><span class="text-[10px] font-medium">${TABS[t].label}</span></label>`).join('');
-    openModal('Criar Perfil de Médium',`<form onsubmit="handleCreateProfile(event)" class="space-y-4 text-xs">
-        <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 leading-relaxed">
-            <strong>Como fazer:</strong> Acesse o <a href="https://console.firebase.google.com" target="_blank" class="underline font-bold">Firebase Console</a> → Authentication → Add user. Crie o usuário com e-mail e senha. Copie o <strong>UID</strong> gerado e cole abaixo.
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-            <div><label class="block font-bold text-stone-500 uppercase mb-1">Nome Completo</label><input type="text" id="np-name" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-            <div><label class="block font-bold text-stone-500 uppercase mb-1">UID do Firebase</label><input type="text" id="np-uid" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none" placeholder="Cole o UID aqui"></div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-            <div><label class="block font-bold text-stone-500 uppercase mb-1">E-mail</label><input type="email" id="np-email" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-            <div><label class="block font-bold text-stone-500 uppercase mb-1">Cargo</label><select id="np-cargo" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">${cargos.map(c=>`<option>${c}</option>`).join('')}</select></div>
-        </div>
-        <div><label class="block font-bold text-stone-500 uppercase mb-2">Módulos Liberados</label>
-            <div class="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">${checks}</div></div>
-        <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
-            <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
-            <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Criar Perfil</button>
-        </div></form>`);
-}
-async function handleCreateProfile(e){
-    e.preventDefault();
-    const uid=document.getElementById('np-uid').value.trim();
-    const tabs=[...document.getElementsByName('np')].filter(c=>c.checked).map(c=>c.value);
-    await fsSet('users',uid,{name:document.getElementById('np-name').value.trim(),email:document.getElementById('np-email').value.trim(),cargo:document.getElementById('np-cargo').value,allowedTabs:tabs,crown:{},duesStatus:'Em Dia',duesItems:[],birthday:''});
-    await addLog(`Criou perfil: ${document.getElementById('np-name').value}`);
-    closeModal(); notif('Perfil criado!','Médium já pode acessar o sistema.','success');
+async function handleCreateProfile(e) {
+  e.preventDefault();
+  const uid   = $('np-uid').value.trim();
+  const name  = $('np-name').value.trim();
+  const email = $('np-email').value.trim();
+  const cargo = $('np-cargo').value;
+  const tabs  = [...document.getElementsByName('np')].filter(c=>c.checked).map(c=>c.value);
+  if (!uid) { notif('Erro','Cole o UID do Firebase.','error'); return; }
+  await fsSet('users', uid, {name, email, cargo, allowedTabs:tabs, crown:{}, duesStatus:'Em Dia', duesItems:[], birthday:''});
+  await addLog(`Criou perfil: ${name}`);
+  closeModal();
+  notif('Perfil criado!','Médium já pode acessar o sistema.','success');
 }
 
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // BACKUP JSON
-// ════════════════════════════════════════════════════
-function exportBackup(){
-    const data={version:3,exportedAt:new Date().toISOString(),terreiro:S.config.terreiroName,users:S.users,transactions:S.transactions,stock:S.stock,schedule:S.schedule,notices:S.notices,presencas:S.presencas,foods:S.foods,freezers:S.freezers,caixotes:S.caixotes,fabrics:S.fabrics,config:S.config};
-    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`backup-paijose-${new Date().toISOString().split('T')[0]}.json`;a.click();
-    notif('Backup exportado','Arquivo JSON salvo com sucesso.','success');
+// ══════════════════════════════════════════════════════
+function exportBackup() {
+  const data = {
+    version:3, exportedAt:new Date().toISOString(),
+    terreiro:S.cfg.terreiroName,
+    users:S.users, stock:S.stock, schedule:S.schedule,
+    notices:S.notices, presencas:S.presencas,
+    foods:S.foods, freezers:S.freezers,
+    caixotes:S.caixotes, fabrics:S.fabrics,
+    config:S.cfg
+  };
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `backup-paijose-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  notif('Backup exportado!','Arquivo JSON salvo com sucesso.','success');
 }
 </script>
 </body>
