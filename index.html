@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- HTML5 QR Code Scanner Library para leitura de código pela câmera do celular/computador -->
+    <!-- HTML5 QR Code Scanner Library para leitura de código de barras/QR Code na Cambonagem -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script>
       tailwind.config = {
@@ -154,7 +154,7 @@
   </main>
 </div>
 
-<!-- MODAL -->
+<!-- MODAL GLOBAL -->
 <div id="modal-wrap" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
   <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300 border border-stone-200" id="global-modal-card">
     <div class="bg-stone-50 border-b border-stone-200 px-6 py-4 flex justify-between items-center">
@@ -182,9 +182,6 @@ import { getFirestore, doc, getDoc, setDoc, addDoc,
          onSnapshot, serverTimestamp,
          writeBatch, query, orderBy, limit }            from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
 
-// ══════════════════════════════════════════════════════
-// CONFIGURAÇÕES DO PROJETO FIREBASE
-// ══════════════════════════════════════════════════════
 const firebaseConfig = {
   apiKey:            "AIzaSyAcdTxtNhCXnAD6-CvnMpoe2uKM-njddtA",
   authDomain:        "paijose-terreiro.firebaseapp.com",
@@ -222,7 +219,8 @@ window.dispatchEvent(new Event('fb-ready'));
 const S = {
   me: null, authUser: null, tab: 'dashboard', cfg: {},
   users:[], stock:[], stockCats:[], cambonagem:[], cambonagemCats:[],
-  freezers:[], foods:[], caixotes:[], fabrics:[], schedule:[], notices:[], presencas:[], logs:[],
+  freezers:[], foods:[], caixotes:[], fabrics:[], schedule:[], notices:[], presencas:[],
+  transactions:[], logs:[],
   _uns: []
 };
 
@@ -238,9 +236,7 @@ const col = n  => __col(n);
 const ref = (n, id) => FB().doc(db(), n, id);
 const ts  = () => FB().serverTimestamp();
 
-function __col(n) {
-  return FB().collection(db(), n);
-}
+function __col(n) { return FB().collection(db(), n); }
 
 // ══════════════════════════════════════════════════════
 // UTILITÁRIOS DOM
@@ -251,9 +247,7 @@ function hideEl(id)  { const e=$('scr-'+id); if(e){e.classList.add('hidden');} }
 function showBlk(id) { const e=$(id); if(e){e.classList.remove('hidden');} }
 function hideBlk(id) { const e=$(id); if(e){e.classList.add('hidden');} }
 
-// ══════════════════════════════════════════════════════
 // NOTIFICAÇÕES
-// ══════════════════════════════════════════════════════
 function notif(title, msg, type) {
   const c = $('notifs'); if (!c) return;
   const id = 'nf'+Date.now();
@@ -268,9 +262,7 @@ function notif(title, msg, type) {
   setTimeout(()=>{ el.classList.add('opacity-0','translate-x-8'); setTimeout(()=>el.remove(),300); }, 5000);
 }
 
-// ══════════════════════════════════════════════════════
-// MODAL
-// ══════════════════════════════════════════════════════
+// MODAL GLOBAL
 function openModal(title, body) {
   $('modal-title').innerText = title;
   $('modal-body').innerHTML  = body;
@@ -282,7 +274,6 @@ function openModal(title, body) {
   }
 }
 function closeModal() {
-  // Para a câmera se o leitor QR estiver aberto
   if (window._qrScannerInstance) {
     try { window._qrScannerInstance.stop().then(() => window._qrScannerInstance.clear()); } catch(_) {}
     window._qrScannerInstance = null;
@@ -299,9 +290,7 @@ function closeModal() {
 }
 $('modal-wrap').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
 
-// ══════════════════════════════════════════════════════
 // HELPERS FIRESTORE
-// ══════════════════════════════════════════════════════
 async function fsAdd(c, data)     { return FB().addDoc(col(c), {...data, _ts:ts()}); }
 async function fsSet(c, id, data) { return FB().setDoc(ref(c,id), {...data, _ts:ts()}, {merge:true}); }
 async function fsUpd(c, id, data) { return FB().updateDoc(ref(c,id), {...data, _ts:ts()}); }
@@ -312,9 +301,7 @@ async function addLog(action) {
   try { await FB().addDoc(col('logs'), {user:S.me?.name||S.authUser.email, cargo:S.me?.cargo||'—', action, _ts:ts()}); } catch(_){}
 }
 
-// ══════════════════════════════════════════════════════
-// LOGO
-// ══════════════════════════════════════════════════════
+// LOGO LOGIC
 function logoSVG(w,h) {
   if (S.cfg?.logoUrl?.trim())
     return `<img src="${S.cfg.logoUrl}" width="${w}" height="${h}" class="object-contain rounded-full border border-amber-500/20 shadow-sm" onerror="this.style.display='none'">`;
@@ -325,20 +312,23 @@ function updateLogos() {
 }
 
 // ══════════════════════════════════════════════════════
-// RBAC
+// RBAC & NAVEGAÇÃO
 // ══════════════════════════════════════════════════════
-const CARGOS = ['ADMIN','PRESIDENTE','SECRETARIA','CAMBONAGEM','COZINHA','TECIDOS','MEDIUM'];
+const CARGOS = ['ADMIN','PRESIDENTE','TESOUREIRO','SECRETARIA','CAMBONAGEM','COZINHA','TECIDOS','MEDIUM'];
 
 function canRead(u, tab) {
   if (!u) return false;
   if (u.cargo === 'ADMIN') return true;
   if (u.cargo === 'PRESIDENTE' && tab !== 'admin') return true;
+  if (u.cargo === 'TESOUREIRO' && ['financeiro','mediuns','dashboard','hub'].includes(tab)) return true;
   return (u.allowedTabs||[]).includes(tab);
 }
+
 function canWrite(u, tab) {
   if (!u) return false;
   if (u.cargo === 'ADMIN') return true;
   if (u.cargo === 'PRESIDENTE' && tab !== 'admin') return true;
+  if (u.cargo === 'TESOUREIRO' && ['financeiro','mediuns'].includes(tab)) return true;
   if (u.cargo === 'SECRETARIA' && ['secretaria','mediuns','presenca'].includes(tab)) return true;
   const tabs = u.allowedTabs||[];
   if (u.cargo==='CAMBONAGEM' && ['estoque','cambonagem'].includes(tab) && tabs.includes(tab)) return true;
@@ -346,15 +336,13 @@ function canWrite(u, tab) {
   if (u.cargo==='TECIDOS'    && tab==='tecidos'  && tabs.includes(tab)) return true;
   return false;
 }
-function isMgr(u) { return ['ADMIN','PRESIDENTE'].includes(u?.cargo); }
+function isMgr(u) { return ['ADMIN','PRESIDENTE','TESOUREIRO'].includes(u?.cargo); }
 
-// ══════════════════════════════════════════════════════
-// ABAS
-// ══════════════════════════════════════════════════════
 const TABS = {
   dashboard:  { label:'Início / Dashboard',   icon:'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+  financeiro: { label:'Gestão Financeira',    icon:'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   estoque:    { label:'Almoxarifado',         icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
-  cambonagem: { label:'Cambonagem & Utensílios', icon:'M9 3v2m6-2v2M9 5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2M9 5h6' },
+  cambonagem: { label:'Cambonagem & Louças',  icon:'M9 3v2m6-2v2M9 5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2M9 5h6' },
   cozinha:    { label:'Cozinha & Despensa',   icon:'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
   tecidos:    { label:'Tecidos & Caixotes',   icon:'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
   secretaria: { label:'Secretaria / Alertas', icon:'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
@@ -398,6 +386,7 @@ function render() {
   const hw = canWrite(S.me, S.tab);
   const map = { 
     dashboard: rDash, 
+    financeiro: rFinanceiro,
     estoque: rEstoque, 
     cambonagem: rCambonagem, 
     cozinha: rCozinha, 
@@ -458,9 +447,7 @@ async function loadPublicCfg() {
   } catch(_) {}
 }
 
-// ══════════════════════════════════════════════════════
-// LOGIN / LOGOUT / SENHA
-// ══════════════════════════════════════════════════════
+// LOGIN / LOGOUT
 $('form-login').addEventListener('submit', async e => {
   e.preventDefault();
   const email = $('inp-email').value.trim();
@@ -534,9 +521,6 @@ async function handleChangePwd(e) {
   }
 }
 
-// ══════════════════════════════════════════════════════
-// ENTRAR NO APP
-// ══════════════════════════════════════════════════════
 async function enterApp() {
   hideEl('load'); hideEl('login'); showEl('app');
   $('ui-name').innerText  = S.me.name  || '—';
@@ -561,9 +545,7 @@ async function loadCfg() {
   } catch(e){ console.error(e); }
 }
 
-// ══════════════════════════════════════════════════════
-// LISTENERS TEMPO REAL
-// ══════════════════════════════════════════════════════
+// LISTENERS
 function startListeners() {
   S._uns.forEach(u=>u&&u()); S._uns=[];
   const listen = (name, key) => {
@@ -579,6 +561,7 @@ function startListeners() {
   listen('freezers','freezers'); listen('foods','foods');
   listen('caixotes','caixotes'); listen('fabrics','fabrics');
   listen('schedule','schedule'); listen('notices','notices'); listen('presencas','presencas');
+  listen('transactions','transactions');
 
   S._uns.push(FB().onSnapshot(ref('config','main'), s=>{
     if(s.exists()){S.cfg=s.data();$('sb-title').innerText=S.cfg.terreiroName||'Pai José';$('sb-sub').innerText=S.cfg.subtitle||'';updateLogos();}
@@ -592,10 +575,10 @@ function startListeners() {
   }
 }
 </script>
+
 <script>
-// ══════════════════════════════════════════════════════
-// HELPERS UI
-// ══════════════════════════════════════════════════════
+'use strict';
+
 function card(icon,label,val,cls,sub) {
   return `<div class="bg-white p-5 rounded-2xl shadow-sm border border-stone-200 flex items-center justify-between"><div><span class="block text-xs font-semibold text-stone-400 uppercase tracking-wider">${label}</span><span class="text-xl font-extrabold ${cls||'text-stone-900'} block mt-1">${val}</span>${sub?`<span class="block text-[10px] text-stone-400 mt-0.5">${sub}</span>`:''}</div><div class="p-3 rounded-xl bg-stone-50 border border-stone-100 text-lg">${icon}</div></div>`;
 }
@@ -605,19 +588,36 @@ function card(icon,label,val,cls,sub) {
 // ══════════════════════════════════════════════════════
 function rDash(ws) {
   const mes   = new Date().getMonth()+1;
+  const year  = new Date().getFullYear();
+  const curMonthStr = `${year}-${String(mes).padStart(2,'0')}`;
+
   const crit  = S.stock.filter(i=>i.quantity<=i.minQuantity).length;
   const aniv  = S.users.filter(u=>u.birthday&&parseInt(u.birthday.split('-')[1])===mes)
                 .sort((a,b)=>parseInt(a.birthday.split('-')[2])-parseInt(b.birthday.split('-')[2]));
   const ng    = [...S.schedule].sort((a,b)=>(a.date||'').localeCompare(b.date||''))[0];
 
   let cards = '';
-  if (canRead(S.me,'estoque')) cards += card('📦','Almoxarifado',`${S.stock.reduce((a,i)=>a+i.quantity,0)} un`, crit>0?'text-red-500':'text-stone-900', crit>0?`${crit} itens em estoque baixo`:'');
-  if (canRead(S.me,'cambonagem')) cards += card('🏺','Cambonagem',`${S.cambonagem.reduce((a,i)=>a+(i.quantity||0),0)} un`, 'text-amber-800', `${S.cambonagem.length} utensílios cadastrados`);
-  if (isMgr(S.me)) {
-    const inadim = S.users.filter(u=>u.duesStatus==='Pendente').length;
-    cards += card('📋','Contribuições',`${inadim} pendente${inadim!==1?'s':''}`, inadim>0?'text-red-600':'text-emerald-600');
+  
+  // SE O USUÁRIO TEM PERMISSÃO PARA VER FINANCEIRO:
+  if (canRead(S.me, 'financeiro')) {
+    const monthTx = S.transactions.filter(t => (t.date || '').startsWith(curMonthStr));
+    const totalEntradas = monthTx.filter(t => t.type === 'entrada').reduce((a, b) => a + (b.amount || 0), 0);
+    const totalSaidas   = monthTx.filter(t => t.type === 'saida').reduce((a, b) => a + (b.amount || 0), 0);
+    const saldo         = totalEntradas - totalSaidas;
+
+    const inadimCount = S.users.filter(u => u.duesStatus === 'Pendente').length;
+
+    cards += card('💰', 'Entradas (Mês)', `R$ ${totalEntradas.toFixed(2)}`, 'text-emerald-700', 'Mensalidades + Doações');
+    cards += card('💸', 'Saídas (Mês)', `R$ ${totalSaidas.toFixed(2)}`, 'text-red-600', 'Contas e Despesas da Casa');
+    cards += card('⚖️', 'Saldo do Mês', `R$ ${saldo.toFixed(2)}`, saldo >= 0 ? 'text-emerald-800' : 'text-red-700', saldo >= 0 ? 'Balanço positivo' : 'Atenção ao caixa');
+    cards += card('📋', 'Mensalidades', `${inadimCount} pendente${inadimCount!==1?'s':''}`, inadimCount > 0 ? 'text-amber-800' : 'text-emerald-700', inadimCount > 0 ? 'Médiuns a quitar' : '100% em dia');
+  } else {
+    // Para médiuns normais sem financeiro:
+    if (canRead(S.me,'estoque')) cards += card('📦','Almoxarifado',`${S.stock.reduce((a,i)=>a+i.quantity,0)} un`, crit>0?'text-red-500':'text-stone-900', crit>0?`${crit} itens em estoque baixo`:'');
+    if (canRead(S.me,'cambonagem')) cards += card('🏺','Cambonagem',`${S.cambonagem.reduce((a,i)=>a+(i.quantity||0),0)} un`, 'text-amber-800', `${S.cambonagem.length} utensílios cadastrados`);
+    cards += card('👥','Médiuns', `${S.users.length}`, 'text-stone-900');
+    cards += card('✨','Próxima Gira', ng?.date||'Nenhuma','text-stone-900', ng?.line||'');
   }
-  cards += card('👥','Médiuns', `${S.users.length}`, 'text-stone-900');
 
   const giraCard = ng
     ? `<div class="bg-gradient-to-br from-stone-900 to-stone-800 text-white p-6 rounded-2xl border border-amber-500/20 shadow-lg">
@@ -668,6 +668,454 @@ function rDash(ws) {
       </div>
     </div>`;
 }
+
+// ══════════════════════════════════════════════════════
+// MÓDULO FINANCEIRO
+// ══════════════════════════════════════════════════════
+let finSubTab = 'caixa'; // 'caixa' | 'mensalidades' | 'despesas'
+let finSearch = '';
+
+function rFinanceiro(ws, hw) {
+  const currentMonthStr = new Date().toISOString().substring(0,7);
+  if (!filterMonth) filterMonth = currentMonthStr;
+
+  let filteredTx = S.transactions;
+  if (filterMonth) {
+    filteredTx = filteredTx.filter(t => (t.date || '').startsWith(filterMonth));
+  }
+  if (filterCategory) {
+    filteredTx = filteredTx.filter(t => t.category === filterCategory);
+  }
+  if (finSearch) {
+    filteredTx = filteredTx.filter(t => (t.description||'').toLowerCase().includes(finSearch.toLowerCase()) || (t.user||'').toLowerCase().includes(finSearch.toLowerCase()));
+  }
+
+  const totalEntradas = filteredTx.filter(t=>t.type==='entrada').reduce((a,b)=>a+(b.amount||0),0);
+  const totalSaidas   = filteredTx.filter(t=>t.type==='saida').reduce((a,b)=>a+(b.amount||0),0);
+  const saldoPeriodo  = totalEntradas - totalSaidas;
+
+  // Render sub-abas
+  let subContent = '';
+  if (finSubTab === 'caixa') {
+    const txRows = filteredTx.map(t => {
+      const isEntrada = t.type === 'entrada';
+      return `<tr class="hover:bg-stone-50/50 text-xs border-b border-stone-100">
+        <td class="px-4 py-3 text-stone-500 font-mono">${t.date||'—'}</td>
+        <td class="px-4 py-3">
+          <span class="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase ${isEntrada?'bg-emerald-50 text-emerald-800 border border-emerald-200':'bg-red-50 text-red-800 border border-red-200'}">
+            ${isEntrada ? '↑ Entrada' : '↓ Saída'}
+          </span>
+        </td>
+        <td class="px-4 py-3 font-bold text-stone-800">${t.category||'Geral'}</td>
+        <td class="px-4 py-3 text-stone-700">${t.description||'—'}</td>
+        <td class="px-4 py-3 font-bold ${isEntrada?'text-emerald-700':'text-red-600'}">
+          ${isEntrada?'+':'-'} R$ ${(t.amount||0).toFixed(2)}
+        </td>
+        <td class="px-4 py-3 text-stone-400 text-[10px]">${t.user||'—'}</td>
+        <td class="px-4 py-3 text-right">
+          ${hw ? `<button onclick="fsDel('transactions','${t.id}').then(()=>notif('Removido','Lançamento excluído.','warning'))" class="text-xs text-stone-400 hover:text-red-600 p-1">Excluir</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="7" class="py-10 text-center text-stone-400 text-xs">Nenhum lançamento no período selecionado.</td></tr>`;
+
+    subContent = `
+      <div class="space-y-4 fi">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+          <div class="flex flex-wrap gap-2 items-center">
+            <label class="text-xs font-bold text-stone-500 uppercase">Mês:</label>
+            <input type="month" value="${filterMonth}" onchange="filterMonth=this.value;render()" class="p-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold focus:outline-none">
+            
+            <label class="text-xs font-bold text-stone-500 uppercase ml-2">Categoria:</label>
+            <select onchange="filterCategory=this.value;render()" class="p-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold focus:outline-none">
+              <option value="">Todas</option>
+              <option ${filterCategory==='Mensalidades'?'selected':''}>Mensalidades</option>
+              <option ${filterCategory==='Doações'?'selected':''}>Doações</option>
+              <option ${filterCategory==='Aluguel'?'selected':''}>Aluguel</option>
+              <option ${filterCategory==='Água/Luz'?'selected':''}>Água/Luz</option>
+              <option ${filterCategory==='Cartões'?'selected':''}>Cartões</option>
+              <option ${filterCategory==='Manutenção'?'selected':''}>Manutenção</option>
+              <option ${filterCategory==='Festividades'?'selected':''}>Festividades</option>
+              <option ${filterCategory==='Insumos'?'selected':''}>Insumos</option>
+            </select>
+          </div>
+          <div class="relative w-full md:w-64">
+            <input type="text" value="${finSearch}" oninput="finSearch=this.value;render()" placeholder="Buscar lançamento..." class="w-full pl-8 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:outline-none">
+            <span class="absolute left-2.5 top-2.5 text-stone-400 text-xs">🔍</span>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto bg-white rounded-2xl border border-stone-200 shadow-sm">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-stone-50 text-[10px] font-bold uppercase tracking-wider text-stone-400 border-b border-stone-200">
+                <th class="px-4 py-3">Data</th>
+                <th class="px-4 py-3">Tipo</th>
+                <th class="px-4 py-3">Categoria</th>
+                <th class="px-4 py-3">Descrição / Origem</th>
+                <th class="px-4 py-3">Valor</th>
+                <th class="px-4 py-3">Registrado por</th>
+                <th class="px-4 py-3 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody>${txRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  } else if (finSubTab === 'mensalidades') {
+    const medCards = S.users.map(m => {
+      const items = m.duesItems || [];
+      const totMed = items.reduce((a,b)=>a+(b.value||0),0);
+      const isPendente = m.duesStatus === 'Pendente';
+
+      return `<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm text-xs flex flex-col justify-between">
+        <div>
+          <div class="flex justify-between items-start mb-3 border-b border-stone-100 pb-2">
+            <div>
+              <h4 class="font-bold text-stone-900 text-sm">${m.name}</h4>
+              <span class="text-[10px] text-stone-400 uppercase">${m.cargo}</span>
+            </div>
+            <span class="px-2 py-0.5 rounded font-bold text-[10px] ${isPendente?'bg-red-50 text-red-800 border border-red-200':'bg-emerald-50 text-emerald-800 border border-emerald-200'}">
+              ${m.duesStatus || 'Em Dia'}
+            </span>
+          </div>
+
+          <div class="space-y-1.5 mb-4">
+            <span class="block text-[10px] font-bold text-stone-400 uppercase">Obrigações Pendentes:</span>
+            ${items.length ? items.map((it, idx) => `
+              <div class="flex justify-between items-center bg-stone-50 p-2 rounded-lg border border-stone-100">
+                <span class="text-stone-700 truncate pr-2">${it.item}</span>
+                <span class="font-bold text-stone-900">R$ ${(it.value||0).toFixed(2)}</span>
+                ${hw ? `<button onclick="removeMediumDue('${m.id}', ${idx})" class="text-stone-400 hover:text-red-600 ml-2 font-bold" title="Remover item">×</button>` : ''}
+              </div>
+            `).join('') : '<p class="text-emerald-700 italic text-[11px] py-1">Sem nenhuma pendência financeira.</p>'}
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-stone-100">
+          <div class="flex justify-between items-center mb-3">
+            <span class="font-bold text-stone-500 uppercase text-[10px]">Total Devido:</span>
+            <span class="font-extrabold text-sm ${totMed>0?'text-amber-800':'text-emerald-700'}">R$ ${totMed.toFixed(2)}</span>
+          </div>
+          ${hw ? `
+            <div class="flex gap-2">
+              <button onclick="openAddDueModal('${m.id}')" class="flex-1 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl text-[10px] sm-t">+ Lançar Cota</button>
+              ${totMed > 0 ? `<button onclick="darBaixaMensalidade('${m.id}')" class="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-[10px] sm-t shadow">✓ Dar Baixa</button>` : ''}
+            </div>
+          ` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    subContent = `
+      <div class="space-y-4 fi">
+        <div class="flex justify-between items-center bg-amber-50 p-4 rounded-2xl border border-amber-200">
+          <div>
+            <h4 class="font-bold text-amber-900 text-xs uppercase">Cobrança Global de Mensalidades</h4>
+            <p class="text-[11px] text-amber-700 mt-0.5">Defina e lance cobranças para todos os médiuns ativos em apenas 1 clique.</p>
+          </div>
+          ${hw ? `<button onclick="openBroadcastDueModal()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl uppercase shadow sm-t">Lançar p/ Todos os Médiuns</button>` : ''}
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          ${medCards}
+        </div>
+      </div>`;
+  } else if (finSubTab === 'despesas') {
+    const despesasTx = filteredTx.filter(t => t.type === 'saida');
+    const catTotals = {};
+    despesasTx.forEach(t => {
+      catTotals[t.category] = (catTotals[t.category] || 0) + (t.amount || 0);
+    });
+
+    const despesasHtml = Object.keys(catTotals).map(c => `
+      <div class="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm flex justify-between items-center">
+        <div>
+          <span class="block font-bold text-stone-800 text-sm">${c}</span>
+          <span class="text-[10px] text-stone-400">Total acumulado no período</span>
+        </div>
+        <span class="font-extrabold text-red-600 text-md">R$ ${catTotals[c].toFixed(2)}</span>
+      </div>
+    `).join('') || '<p class="text-stone-400 text-xs p-6 text-center col-span-full">Sem despesas registradas no período.</p>';
+
+    subContent = `
+      <div class="space-y-4 fi">
+        <div class="bg-stone-900 text-white p-5 rounded-2xl border border-stone-800">
+          <h4 class="font-cinzel text-sm font-bold text-amber-400 mb-1">Contas Fixas & Custos da Casa</h4>
+          <p class="text-xs text-stone-300 font-light leading-relaxed">
+            Aqui você acompanha os pagamentos corporativos do terreiro (Aluguel, Água/Luz, Faturas de Cartão, Insumos e Fornecedores). 
+            Estas informações são mantidas estritamente confidenciais e protegidas por perfil.
+          </p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          ${despesasHtml}
+        </div>
+      </div>`;
+  }
+
+  ws.innerHTML = `
+    <div class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 fi">
+      <div>
+        <h1 class="font-cinzel text-2xl font-bold text-stone-900">Gestão Financeira</h1>
+        <p class="text-xs text-stone-500">Livro caixa, controle de mensalidades dos médiuns e contas da casa</p>
+      </div>
+      ${hw ? `
+        <div class="flex gap-2">
+          <button onclick="openNewTxModal('entrada')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl uppercase shadow sm-t">+ Entrada</button>
+          <button onclick="openNewTxModal('saida')" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl uppercase shadow sm-t">- Saída / Conta</button>
+        </div>
+      ` : ''}
+    </div>
+
+    <!-- Indicadores de Caixa -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 fi">
+      <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="block text-[10px] font-bold uppercase text-stone-400">Total de Entradas</span>
+          <span class="text-xl font-extrabold text-emerald-700 block mt-1">R$ ${totalEntradas.toFixed(2)}</span>
+        </div>
+        <div class="p-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-lg">↑</div>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="block text-[10px] font-bold uppercase text-stone-400">Total de Saídas</span>
+          <span class="text-xl font-extrabold text-red-600 block mt-1">R$ ${totalSaidas.toFixed(2)}</span>
+        </div>
+        <div class="p-3 bg-red-50 text-red-600 rounded-xl font-bold text-lg">↓</div>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="block text-[10px] font-bold uppercase text-stone-400">Saldo do Período</span>
+          <span class="text-xl font-extrabold ${saldoPeriodo>=0?'text-emerald-800':'text-red-700'} block mt-1">R$ ${saldoPeriodo.toFixed(2)}</span>
+        </div>
+        <div class="p-3 bg-stone-50 text-stone-800 rounded-xl font-bold text-lg">⚖️</div>
+      </div>
+    </div>
+
+    <!-- Sub-Abas -->
+    <div class="flex border-b border-stone-200 mb-6 gap-4">
+      <button onclick="finSubTab='caixa';render()" class="py-2.5 px-4 font-bold text-xs border-b-2 sm-t ${finSubTab==='caixa'?'border-amber-500 text-amber-800':'border-transparent text-stone-500 hover:text-stone-800'}">
+        📖 Livro Caixa / Lançamentos
+      </button>
+      <button onclick="finSubTab='mensalidades';render()" class="py-2.5 px-4 font-bold text-xs border-b-2 sm-t ${finSubTab==='mensalidades'?'border-amber-500 text-amber-800':'border-transparent text-stone-500 hover:text-stone-800'}">
+        👥 Mensalidades dos Médiuns
+      </button>
+      <button onclick="finSubTab='despesas';render()" class="py-2.5 px-4 font-bold text-xs border-b-2 sm-t ${finSubTab==='despesas'?'border-amber-500 text-amber-800':'border-transparent text-stone-500 hover:text-stone-800'}">
+        🏠 Contas & Custos da Casa
+      </button>
+    </div>
+
+    ${subContent}`;
+}
+
+// LANÇAR TRANSAÇÃO (ENTRADA / SAÍDA)
+function openNewTxModal(type = 'entrada') {
+  const isEntrada = type === 'entrada';
+  openModal(isEntrada ? 'Nova Entrada (Receita)' : 'Nova Saída (Despesa da Casa)', `
+    <form onsubmit="handleNewTx(event, '${type}')" class="space-y-4 text-xs">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block font-bold text-stone-500 uppercase mb-1">Data</label>
+          <input type="date" id="tx-date" required value="${new Date().toISOString().substring(0,10)}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+        </div>
+        <div>
+          <label class="block font-bold text-stone-500 uppercase mb-1">Valor (R$)</label>
+          <input type="number" step="0.01" min="0.01" id="tx-amount" required placeholder="0.00" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none font-bold">
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Categoria</label>
+        <select id="tx-cat" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+          ${isEntrada ? `
+            <option>Mensalidades</option>
+            <option>Doações</option>
+            <option>Festividades</option>
+            <option>Venda de Artigos</option>
+            <option>Outras Entradas</option>
+          ` : `
+            <option>Aluguel</option>
+            <option>Água/Luz</option>
+            <option>Cartões</option>
+            <option>Manutenção</option>
+            <option>Insumos</option>
+            <option>Alimentação / Cozinha</option>
+            <option>Outras Despesas</option>
+          `}
+        </select>
+      </div>
+
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Descrição / Detalhes</label>
+        <input type="text" id="tx-desc" required placeholder="${isEntrada?'Ex: Pagamento mensalidade de Irmão João':'Ex: Fatura de luz mês de Maio'}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+      </div>
+
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 ${isEntrada?'bg-emerald-600 hover:bg-emerald-700':'bg-red-600 hover:bg-red-700'} text-white rounded-xl font-bold">${isEntrada?'Salvar Entrada':'Registrar Saída'}</button>
+      </div>
+    </form>
+  `);
+}
+
+async function handleNewTx(e, type) {
+  e.preventDefault();
+  const amount = parseFloat($('tx-amount').value) || 0;
+  const date   = $('tx-date').value;
+  const category = $('tx-cat').value;
+  const description = $('tx-desc').value.trim();
+
+  await fsAdd('transactions', {
+    type,
+    amount,
+    date,
+    category,
+    description,
+    user: S.me?.name || S.authUser.email
+  });
+
+  await addLog(`Lançou ${type} financeira: R$ ${amount.toFixed(2)} (${category})`);
+  closeModal();
+  notif('Transação registrada!', `R$ ${amount.toFixed(2)} cadastrado em ${category}.`, 'success');
+}
+
+// LANÇAR COBRANÇA PARA UM MÉDIUM
+function openAddDueModal(uid) {
+  const u = S.users.find(x => x.id === uid);
+  if (!u) return;
+
+  openModal(`Lançar Cobrança para ${u.name}`, `
+    <form onsubmit="handleAddDue(event, '${uid}')" class="space-y-4 text-xs">
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Descrição da Cota / Obrigação</label>
+        <input type="text" id="due-item" required placeholder="Ex: Mensalidade Maio/2026" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+      </div>
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Valor (R$)</label>
+        <input type="number" step="0.01" min="0.01" id="due-val" value="50.00" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none font-bold">
+      </div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-stone-950 rounded-xl font-bold">Adicionar Cota</button>
+      </div>
+    </form>
+  `);
+}
+
+async function handleAddDue(e, uid) {
+  e.preventDefault();
+  const u = S.users.find(x => x.id === uid);
+  if (!u) return;
+
+  const item  = $('due-item').value.trim();
+  const value = parseFloat($('due-val').value) || 0;
+
+  const currentItems = u.duesItems || [];
+  currentItems.push({ item, value });
+
+  await fsUpd('users', uid, {
+    duesItems: currentItems,
+    duesStatus: 'Pendente'
+  });
+
+  await addLog(`Lançou cota para ${u.name}: ${item} (R$ ${value.toFixed(2)})`);
+  closeModal();
+  notif('Cota adicionada!', `Lançamento feito para ${u.name}.`, 'success');
+}
+
+// LANÇAR COBRANÇA PARA TODOS OS MÉDIUNS
+function openBroadcastDueModal() {
+  openModal('Lançar Cobrança para TODOS os Médiuns', `
+    <form onsubmit="handleBroadcastDue(event)" class="space-y-4 text-xs">
+      <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 leading-relaxed">
+        Esta ação adicionará a cota abaixo para <strong>todos os ${S.users.length} médiuns</strong> cadastrados no terreiro.
+      </div>
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Descrição do Item</label>
+        <input type="text" id="bc-item" required value="Mensalidade do Terreiro" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+      </div>
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Valor para cada Médium (R$)</label>
+        <input type="number" step="0.01" min="0.01" id="bc-val" value="50.00" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none font-bold">
+      </div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-stone-950 rounded-xl font-bold">Lançar para Todos</button>
+      </div>
+    </form>
+  `);
+}
+
+async function handleBroadcastDue(e) {
+  e.preventDefault();
+  const item  = $('bc-item').value.trim();
+  const value = parseFloat($('bc-val').value) || 0;
+
+  const batch = FB().writeBatch(db());
+  S.users.forEach(u => {
+    const curItems = u.duesItems || [];
+    curItems.push({ item, value });
+    batch.update(FB().doc(db(), 'users', u.id), {
+      duesItems: curItems,
+      duesStatus: 'Pendente'
+    });
+  });
+
+  await batch.commit();
+  await addLog(`Lançou cobrança coletiva: ${item} (R$ ${value.toFixed(2)})`);
+  closeModal();
+  notif('Cobrança coletiva enviada!', `Adicionado R$ ${value.toFixed(2)} a todos os médiuns.`, 'success');
+}
+
+// REMOVER ITEM INDIVIDUAL DE COBRANÇA
+async function removeMediumDue(uid, index) {
+  const u = S.users.find(x => x.id === uid);
+  if (!u) return;
+
+  const items = u.duesItems || [];
+  items.splice(index, 1);
+  const newStatus = items.length === 0 ? 'Em Dia' : 'Pendente';
+
+  await fsUpd('users', uid, {
+    duesItems: items,
+    duesStatus: newStatus
+  });
+
+  notif('Item removido', 'Cota do médium atualizada.', 'info');
+}
+
+// DAR BAIXA / REGISTRAR PAGAMENTO DO MÉDIUM
+async function darBaixaMensalidade(uid) {
+  const u = S.users.find(x => x.id === uid);
+  if (!u) return;
+
+  const items = u.duesItems || [];
+  const totPaid = items.reduce((a,b)=>a+(b.value||0),0);
+
+  if (totPaid > 0) {
+    // Registra entrada no caixa automaticamente!
+    await fsAdd('transactions', {
+      type: 'entrada',
+      amount: totPaid,
+      date: new Date().toISOString().substring(0,10),
+      category: 'Mensalidades',
+      description: `Quitado por ${u.name}: ${items.map(i=>i.item).join(', ')}`,
+      user: S.me?.name || S.authUser.email,
+      mediumId: uid
+    });
+  }
+
+  // Zera itens do médium e altera status para Em Dia
+  await fsUpd('users', uid, {
+    duesItems: [],
+    duesStatus: 'Em Dia'
+  });
+
+  await addLog(`Deu baixa nas mensalidades de ${u.name} (R$ ${totPaid.toFixed(2)})`);
+  notif('Baixa efetuada!', `${u.name} está em dia. R$ ${totPaid.toFixed(2)} entrou no Caixa!`, 'success');
+}
+</script>
+
+<script>
+'use strict';
 
 // ══════════════════════════════════════════════════════
 // ALMOXARIFADO
@@ -848,7 +1296,7 @@ function deleteCategory(id, name) {
 }
 
 // ══════════════════════════════════════════════════════
-// CAMBONAGEM & UTENSÍLIOS (MODULO COM IMAGEM, NÚMERO DE SÉRIE E CÂMERA)
+// CAMBONAGEM & UTENSÍLIOS
 // ══════════════════════════════════════════════════════
 let cbSrch = '';
 
@@ -903,7 +1351,7 @@ function rCambonagem(ws, hw) {
   ws.innerHTML = `
     <div class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 fi">
       <div>
-        <h1 class="font-cinzel text-2xl font-bold text-stone-900">Cambonagem & Utensílios</h1>
+        <h1 class="font-cinzel text-2xl font-bold text-stone-900">Cambonagem & Louças</h1>
         <p class="text-xs text-stone-500">Gestão rápida de louças, alguidares, guias e utensílios litúrgicos</p>
       </div>
       <div class="flex flex-wrap gap-2 w-full md:w-auto">
@@ -1060,7 +1508,6 @@ function openQrModal(serial, name) {
   `);
 }
 
-// CÂMERA DO CELULAR PARA ESCANEAR CÓDIGO
 function openCbCameraScannerModal() {
   openModal('Leitor de Código via Câmera', `
     <div class="space-y-4 text-xs text-center">
@@ -1119,7 +1566,7 @@ function openCbCameraScannerModal() {
               render();
             }
           },
-          () => {} // erros ignorados durante varredura
+          () => {}
         ).catch(err => {
           $('reader-container').innerHTML = `<p class="p-6 text-stone-400">Não foi possível acessar a câmera do dispositivo.<br><span class="text-[10px]">${err.message||''}</span></p>`;
         });
@@ -1222,9 +1669,7 @@ function deleteCbCategory(id, name) {
     openManageCbCatsModal();
   });
 }
-</script>
 
-<script>
 // ══════════════════════════════════════════════════════
 // COZINHA
 // ══════════════════════════════════════════════════════
@@ -1273,6 +1718,7 @@ function rCozinha(ws,hw){
       </div>
     </div>`;
 }
+
 function openFrzModal(){
   openModal('Criar Freezer',`<form onsubmit="handleFrz(event)" class="space-y-4 text-xs">
     <div><label class="block font-bold text-stone-500 uppercase mb-1">Nome</label><input type="text" id="fr-n" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
@@ -1303,6 +1749,8 @@ async function handleFood(e){e.preventDefault();await fsAdd('foods',{name:$('fo-
 </script>
 
 <script>
+'use strict';
+
 // ══════════════════════════════════════════════════════
 // TECIDOS
 // ══════════════════════════════════════════════════════
@@ -1367,9 +1815,7 @@ function openFabModal(cid){
     </div></form>`);
 }
 async function handleFab(e,cid){e.preventDefault();await fsAdd('fabrics',{caixoteId:cid,pieceName:$('fb-n').value.trim(),color:$('fb-c').value.trim(),line:$('fb-l').value.trim(),quantity:parseInt($('fb-q').value)});closeModal();notif('Peça cadastrada','','success');}
-</script>
 
-<script>
 // ══════════════════════════════════════════════════════
 // SECRETARIA
 // ══════════════════════════════════════════════════════
@@ -1426,6 +1872,7 @@ function rSec(ws,hw){
       </div>
     </div>`;
 }
+
 async function handleGira(e){
   e.preventDefault();
   await fsAdd('schedule',{date:$('g-d').value,time:$('g-h').value,line:$('g-l').value.trim(),dirigente:$('g-dir').value.trim(),vestuario:$('g-v').value.trim(),recomendacoes:$('g-r').value.trim()});
@@ -1461,6 +1908,7 @@ function rMediuns(ws,hw){
     <div class="mb-6"><h1 class="font-cinzel text-2xl font-bold text-stone-900">Corpo de Médiuns</h1><p class="text-xs text-stone-500">Controle litúrgico, coroas e guias de trabalho</p></div>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">${cards}</div>`;
 }
+
 function openCrownModal(uid){
   const u=S.users.find(x=>x.id===uid); if(!u) return; const c=u.crown||{};
   const fields=[['Orixá de Frente','cf',c.orixaFrente],['Orixá de Juntó','cj',c.orixaJunto],['Exu','ce',c.exu],['Pombagira','cp',c.pombagira],['Caboclo','cc',c.caboclo],['Boiadeiro','cb',c.boiadeiro],['Erê','cr',c.ere],['Preto Velho','cv',c.pretoVelho]];
@@ -1472,6 +1920,7 @@ function openCrownModal(uid){
       <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Atualizar</button>
     </div></form>`);
 }
+
 async function handleCrown(e,uid){
   e.preventDefault();
   const crown={orixaFrente:$('cf').value.trim(),orixaJunto:$('cj').value.trim(),exu:$('ce').value.trim(),pombagira:$('cp').value.trim(),caboclo:$('cc').value.trim(),boiadeiro:$('cb').value.trim(),ere:$('cr').value.trim(),pretoVelho:$('cv').value.trim()};
@@ -1481,8 +1930,7 @@ async function handleCrown(e,uid){
   await addLog('Atualizou ficha de médium');
   closeModal(); notif('Ficha atualizada','','success');
 }
-</script>
-<script>
+
 // ══════════════════════════════════════════════════════
 // PRESENÇA
 // ══════════════════════════════════════════════════════
@@ -1571,6 +2019,7 @@ function rPresenca(ws, hw) {
       </div>
     </div>`;
 }
+
 async function setPresenca(sid, uid, presente) {
   const ex = S.presencas.find(p=>p.scheduleId===sid&&p.userId===uid);
   if (ex) await fsUpd('presencas', ex.id, {presente});
@@ -1608,7 +2057,10 @@ let curQ = QUOTES[0];
 function rHub(ws) {
   const u  = S.me, c = u.crown||{};
   const ng = [...S.schedule].sort((a,b)=>(a.date||'').localeCompare(b.date||''))[0];
-  const dl = u.duesItems||[], tot = dl.reduce((a,i)=>a+(i.value||0),0);
+  
+  // DADOS DINÂMICOS DE CONTRIBUIÇÕES DO MÉDIUM
+  const dl = u.duesItems || [];
+  const tot = dl.reduce((a,i)=>a+(i.value||0),0);
   const myP = S.presencas.filter(p=>p.userId===u.id);
   const myPres = myP.filter(p=>p.presente).length;
   const pct = myP.length ? Math.round(myPres/myP.length*100) : null;
@@ -1669,32 +2121,33 @@ function rHub(ws) {
         </div>
       </div>
 
-      <!-- CONTRIBUIÇÕES -->
+      <!-- CONTRIBUIÇÕES ATUALIZADAS -->
       <div class="lg:col-span-1 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm flex flex-col">
         <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">Minhas Contribuições</h3>
         <div class="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200 mb-4 text-xs">
-          <span class="font-bold text-stone-700">Status:</span>
-          <span class="px-2 py-0.5 rounded font-bold text-[10px] ${u.duesStatus==='Em Dia'?'bg-emerald-50 text-emerald-800 border border-emerald-100':'bg-red-50 text-red-800 border border-red-100'}">${u.duesStatus||'—'}</span>
+          <span class="font-bold text-stone-700">Status da Minha Cota:</span>
+          <span class="px-2.5 py-1 rounded-lg font-bold text-[10px] ${u.duesStatus==='Em Dia'?'bg-emerald-50 text-emerald-800 border border-emerald-200':'bg-red-50 text-red-800 border border-red-200'}">${u.duesStatus||'Em Dia'}</span>
         </div>
-        <div class="mb-4 bg-stone-50 p-4 rounded-xl border border-stone-200">
-          <h4 class="text-[10px] uppercase font-bold text-stone-400 mb-2 border-b border-stone-200 pb-1">Discriminação</h4>
-          ${dl.length ? dl.map(d=>`<div class="flex justify-between items-center py-2 border-b border-stone-100 last:border-0 text-xs"><span class="text-stone-600">${d.item}</span><span class="font-bold text-stone-800">R$ ${(d.value||0).toFixed(2)}</span></div>`).join('') : '<p class="text-xs text-stone-400 text-center py-2">Sem pendências.</p>'}
+        <div class="mb-4 bg-stone-50 p-4 rounded-xl border border-stone-200 flex-1">
+          <h4 class="text-[10px] uppercase font-bold text-stone-400 mb-2 border-b border-stone-200 pb-1">Discriminação de Cotas</h4>
+          ${dl.length ? dl.map(d=>`<div class="flex justify-between items-center py-2 border-b border-stone-100 last:border-0 text-xs"><span class="text-stone-600 font-medium">${d.item}</span><span class="font-bold text-stone-800">R$ ${(d.value||0).toFixed(2)}</span></div>`).join('') : '<p class="text-xs text-emerald-700 font-semibold text-center py-4">Sua mensalidade está totalmente em dia! Axé!</p>'}
           <div class="flex justify-between border-t border-stone-200 pt-2 mt-2 text-xs">
-            <span class="font-bold text-stone-900">Total</span>
-            <span class="font-extrabold text-amber-800 text-sm">R$ ${tot.toFixed(2)}</span>
+            <span class="font-bold text-stone-900">Total a Pagar</span>
+            <span class="font-extrabold ${tot>0?'text-amber-800':'text-emerald-700'} text-sm">R$ ${tot.toFixed(2)}</span>
           </div>
         </div>
         ${S.cfg.pixKey?`<div class="p-4 bg-stone-50 rounded-xl border border-stone-200 text-center">
-          <p class="text-[10px] text-stone-400 font-bold uppercase mb-2">Chave PIX Oficial</p>
+          <p class="text-[10px] text-stone-400 font-bold uppercase mb-2">Chave PIX Oficial do Terreiro</p>
           <div class="flex items-center justify-center gap-1.5">
             <span id="pix-val" class="text-xs font-mono font-bold bg-white px-2.5 py-1 rounded border text-stone-600 select-all">${S.cfg.pixKey}</span>
             <button onclick="copyPix()" class="px-2 py-1 bg-stone-200 hover:bg-stone-300 rounded text-[10px] font-bold">Copiar</button>
           </div>
         </div>`:''}
-        ${u.duesStatus!=='Em Dia' ? `<p class="text-xs text-stone-500 italic text-center mt-3">Realize o pagamento via PIX e aguarde a confirmação.</p>` : `<p class="text-[10px] text-emerald-600 font-bold mt-4 text-center">✓ Todas as contribuições estão em dia!</p>`}
+        ${u.duesStatus!=='Em Dia' ? `<p class="text-xs text-stone-500 italic text-center mt-3">Após realizar o PIX, favor enviar o comprovante para a Tesouraria.</p>` : `<p class="text-[10px] text-emerald-600 font-bold mt-4 text-center">✓ Todas as contribuições estão em dia!</p>`}
       </div>
     </div>`;
 }
+
 function rotateQ() {
   curQ = QUOTES[Math.floor(Math.random()*QUOTES.length)];
   const b = $('quote-box');
@@ -1704,8 +2157,7 @@ function copyPix() {
   const k = $('pix-val');
   if (k) navigator.clipboard.writeText(k.innerText).then(()=>notif('PIX Copiado!','','success'));
 }
-</script>
-<script>
+
 // ══════════════════════════════════════════════════════
 // ADMINISTRAÇÃO
 // ══════════════════════════════════════════════════════
@@ -1734,7 +2186,6 @@ function rAdmin(ws) {
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
       <div class="lg:col-span-1 space-y-6">
-        <!-- Config do terreiro -->
         <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
           <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">Identidade do Terreiro</h3>
           <form onsubmit="handleCfg(event)" class="space-y-4 text-xs">
@@ -1750,7 +2201,6 @@ function rAdmin(ws) {
           </form>
         </div>
 
-        <!-- Cadastrar novo médium -->
         ${canEdit?`<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
           <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-3">Cadastrar Médium</h3>
           <p class="text-xs text-stone-500 mb-4 leading-relaxed">
@@ -1760,7 +2210,6 @@ function rAdmin(ws) {
         </div>`:''}
       </div>
 
-      <!-- Tabela de médiuns -->
       <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
         <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-4 mb-4">Médiuns Cadastrados</h3>
         <div class="overflow-x-auto">
@@ -1924,9 +2373,7 @@ async function handleCreateProfile(e) {
   }
 }
 
-// ══════════════════════════════════════════════════════
 // BACKUP JSON
-// ══════════════════════════════════════════════════════
 function exportBackup() {
   const data = {
     version: 5, exportedAt: new Date().toISOString(),
@@ -1934,7 +2381,7 @@ function exportBackup() {
     users: S.users, stock: S.stock, cambonagem: S.cambonagem,
     schedule: S.schedule, notices: S.notices, presencas: S.presencas,
     foods: S.foods, freezers: S.freezers, caixotes: S.caixotes, fabrics: S.fabrics,
-    config: S.cfg
+    transactions: S.transactions, config: S.cfg
   };
   const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a = document.createElement('a');
