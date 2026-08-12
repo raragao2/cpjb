@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTML5 QR Code Scanner Library para leitura de código pela câmera do celular/computador -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script>
       tailwind.config = {
         theme: { extend: {
@@ -219,18 +221,26 @@ window.dispatchEvent(new Event('fb-ready'));
 // ══════════════════════════════════════════════════════
 const S = {
   me: null, authUser: null, tab: 'dashboard', cfg: {},
-  users:[], stock:[], stockCats:[], freezers:[], foods:[],
-  caixotes:[], fabrics:[], schedule:[], notices:[], presencas:[], logs:[],
+  users:[], stock:[], stockCats:[], cambonagem:[], cambonagemCats:[],
+  freezers:[], foods:[], caixotes:[], fabrics:[], schedule:[], notices:[], presencas:[], logs:[],
   _uns: []
 };
+
+// Filtros
+let filterMonth = '';
+let filterCategory = '';
 
 // Atalhos Firebase
 const FB  = () => window._FB;
 const db  = () => FB().db;
 const au  = () => FB().auth;
-const col = n  => FB().collection(db(), n);
+const col = n  => __col(n);
 const ref = (n, id) => FB().doc(db(), n, id);
 const ts  = () => FB().serverTimestamp();
+
+function __col(n) {
+  return FB().collection(db(), n);
+}
 
 // ══════════════════════════════════════════════════════
 // UTILITÁRIOS DOM
@@ -272,6 +282,11 @@ function openModal(title, body) {
   }
 }
 function closeModal() {
+  // Para a câmera se o leitor QR estiver aberto
+  if (window._qrScannerInstance) {
+    try { window._qrScannerInstance.stop().then(() => window._qrScannerInstance.clear()); } catch(_) {}
+    window._qrScannerInstance = null;
+  }
   const card = $('global-modal-card');
   if (card) {
     card.classList.remove('scale-100');
@@ -326,7 +341,7 @@ function canWrite(u, tab) {
   if (u.cargo === 'PRESIDENTE' && tab !== 'admin') return true;
   if (u.cargo === 'SECRETARIA' && ['secretaria','mediuns','presenca'].includes(tab)) return true;
   const tabs = u.allowedTabs||[];
-  if (u.cargo==='CAMBONAGEM' && tab==='estoque'  && tabs.includes(tab)) return true;
+  if (u.cargo==='CAMBONAGEM' && ['estoque','cambonagem'].includes(tab) && tabs.includes(tab)) return true;
   if (u.cargo==='COZINHA'    && tab==='cozinha'  && tabs.includes(tab)) return true;
   if (u.cargo==='TECIDOS'    && tab==='tecidos'  && tabs.includes(tab)) return true;
   return false;
@@ -339,6 +354,7 @@ function isMgr(u) { return ['ADMIN','PRESIDENTE'].includes(u?.cargo); }
 const TABS = {
   dashboard:  { label:'Início / Dashboard',   icon:'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
   estoque:    { label:'Almoxarifado',         icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
+  cambonagem: { label:'Cambonagem & Utensílios', icon:'M9 3v2m6-2v2M9 5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2M9 5h6' },
   cozinha:    { label:'Cozinha & Despensa',   icon:'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
   tecidos:    { label:'Tecidos & Caixotes',   icon:'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
   secretaria: { label:'Secretaria / Alertas', icon:'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
@@ -380,7 +396,18 @@ function switchTab(k) {
 function render() {
   const ws = $('content'); if (!ws) return; ws.innerHTML = '';
   const hw = canWrite(S.me, S.tab);
-  const map = { dashboard:rDash, estoque:rEstoque, cozinha:rCozinha, tecidos:rTecidos, secretaria:rSec, mediuns:rMediuns, presenca:rPresenca, hub:rHub, admin:rAdmin };
+  const map = { 
+    dashboard: rDash, 
+    estoque: rEstoque, 
+    cambonagem: rCambonagem, 
+    cozinha: rCozinha, 
+    tecidos: rTecidos, 
+    secretaria: rSec, 
+    mediuns: rMediuns, 
+    presenca: rPresenca, 
+    hub: rHub, 
+    admin: rAdmin 
+  };
   (map[S.tab] || (w=>{ w.innerHTML='<p class="text-stone-400 p-8 text-center">Em desenvolvimento.</p>'; }))(ws, hw);
 }
 
@@ -546,7 +573,9 @@ function startListeners() {
     }, err=>console.warn(name,err));
     S._uns.push(u);
   };
-  listen('users','users'); listen('stock','stock'); listen('stockCategories','stockCats');
+  listen('users','users'); 
+  listen('stock','stock'); listen('stockCategories','stockCats');
+  listen('cambonagem','cambonagem'); listen('cambonagemCategories','cambonagemCats');
   listen('freezers','freezers'); listen('foods','foods');
   listen('caixotes','caixotes'); listen('fabrics','fabrics');
   listen('schedule','schedule'); listen('notices','notices'); listen('presencas','presencas');
@@ -583,11 +612,11 @@ function rDash(ws) {
 
   let cards = '';
   if (canRead(S.me,'estoque')) cards += card('📦','Almoxarifado',`${S.stock.reduce((a,i)=>a+i.quantity,0)} un`, crit>0?'text-red-500':'text-stone-900', crit>0?`${crit} itens em estoque baixo`:'');
+  if (canRead(S.me,'cambonagem')) cards += card('🏺','Cambonagem',`${S.cambonagem.reduce((a,i)=>a+(i.quantity||0),0)} un`, 'text-amber-800', `${S.cambonagem.length} utensílios cadastrados`);
   if (isMgr(S.me)) {
     const inadim = S.users.filter(u=>u.duesStatus==='Pendente').length;
     cards += card('📋','Contribuições',`${inadim} pendente${inadim!==1?'s':''}`, inadim>0?'text-red-600':'text-emerald-600');
   }
-  cards += card('✨','Próxima Gira', ng?.date||'Nenhuma','text-stone-900', ng?.line||'');
   cards += card('👥','Médiuns', `${S.users.length}`, 'text-stone-900');
 
   const giraCard = ng
@@ -735,7 +764,6 @@ async function saveCat(){
   await fsAdd('stockCategories',{name:v}); closeModal(); notif('Categoria criada',v,'success');
 }
 
-// GERENCIAMENTO COMPLETO DE CATEGORIAS (CRIAR, EDITAR, EXCLUIR)
 function openManageCatsModal() {
   const list = S.stockCats.map(c => `
     <div class="flex items-center justify-between p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-xs">
@@ -820,6 +848,384 @@ function deleteCategory(id, name) {
 }
 
 // ══════════════════════════════════════════════════════
+// CAMBONAGEM & UTENSÍLIOS (MODULO COM IMAGEM, NÚMERO DE SÉRIE E CÂMERA)
+// ══════════════════════════════════════════════════════
+let cbSrch = '';
+
+function rCambonagem(ws, hw) {
+  const items = cbSrch ? S.cambonagem.filter(i=>
+    i.name?.toLowerCase().includes(cbSrch.toLowerCase()) ||
+    i.category?.toLowerCase().includes(cbSrch.toLowerCase()) ||
+    i.serialNumber?.toLowerCase().includes(cbSrch.toLowerCase()) ||
+    i.location?.toLowerCase().includes(cbSrch.toLowerCase())
+  ) : S.cambonagem;
+
+  const rows = items.length ? items.map(i => {
+    const crit = i.quantity <= i.minQuantity;
+    const imgHtml = i.imageUrl?.trim()
+      ? `<img src="${i.imageUrl}" class="w-10 h-10 object-cover rounded-xl border border-stone-200 shrink-0" onerror="this.onerror=null; this.src='https://placehold.co/100x100/f5f5f4/ca8a04?text=Utens%C3%ADlio';">`
+      : `<div class="w-10 h-10 bg-amber-50 text-amber-700 border border-amber-200/60 rounded-xl flex items-center justify-center font-bold text-xs shrink-0">🏺</div>`;
+
+    const serialClean = (i.serialNumber || 'SN-'+i.id.substring(0,6)).toUpperCase();
+
+    return `<tr class="hover:bg-stone-50/50 text-xs border-b border-stone-100">
+      <td class="px-4 py-3">
+        <div class="flex items-center gap-3">
+          ${imgHtml}
+          <div>
+            <span class="font-bold text-stone-900 block text-sm">${i.name}</span>
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded font-mono text-[9px] bg-stone-100 text-stone-600 border border-stone-200 font-bold">${serialClean}</span>
+          </div>
+        </div>
+      </td>
+      <td class="px-4 py-3 text-stone-600 font-medium">${i.category || 'Geral'}</td>
+      <td class="px-4 py-3 text-stone-500">${i.location || '—'}</td>
+      <td class="px-4 py-3">
+        <span class="inline-flex px-2.5 py-1 rounded-xl text-xs font-bold ${crit ? 'bg-red-50 text-red-800 border border-red-200 animate-pulse' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'}">${i.quantity || 0} un</span>
+      </td>
+      <td class="px-4 py-3 text-stone-400 max-w-xs truncate">${i.notes || '—'}</td>
+      <td class="px-4 py-3 text-right">
+        <div class="flex items-center justify-end gap-1.5">
+          <button onclick="openQrModal('${serialClean}', '${(i.name||'').replace(/'/g,"\\'")}')" class="p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs font-bold" title="Ver QR Code / Etiqueta">
+            📱 QR
+          </button>
+          ${hw ? `
+            <button onclick="adjCbQty('${i.id}',-1,${i.quantity||0},${i.minQuantity||0},'${(i.name||'').replace(/'/g,"\\'")}')" class="w-7 h-7 bg-stone-100 hover:bg-stone-200 rounded-lg font-bold text-xs flex items-center justify-center text-stone-700 sm-t">−</button>
+            <button onclick="adjCbQty('${i.id}',1,${i.quantity||0},${i.minQuantity||0},'${(i.name||'').replace(/'/g,"\\'")}')" class="w-7 h-7 bg-amber-500 hover:bg-amber-600 text-stone-950 rounded-lg font-bold text-xs flex items-center justify-center sm-t">+</button>
+            <button onclick="openCambonagemModal('${i.id}')" class="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-lg text-[10px]">Editar</button>
+            <button onclick="fsDel('cambonagem','${i.id}').then(()=>notif('Removido','Utensílio excluído.','warning'))" class="text-xs text-stone-400 hover:text-red-600 p-1">Excluir</button>
+          ` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" class="py-12 text-center text-stone-400 text-xs">Nenhum utensílio ou item de cambonagem encontrado.</td></tr>`;
+
+  ws.innerHTML = `
+    <div class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 fi">
+      <div>
+        <h1 class="font-cinzel text-2xl font-bold text-stone-900">Cambonagem & Utensílios</h1>
+        <p class="text-xs text-stone-500">Gestão rápida de louças, alguidares, guias e utensílios litúrgicos</p>
+      </div>
+      <div class="flex flex-wrap gap-2 w-full md:w-auto">
+        <button onclick="openCbCameraScannerModal()" class="flex-1 md:flex-none px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-bold rounded-xl uppercase shadow sm-t flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
+          Escanear Código (Câmera)
+        </button>
+        ${hw ? `
+          <button onclick="openManageCbCatsModal()" class="px-3 py-2.5 border border-stone-300 text-stone-700 text-xs font-bold rounded-xl hover:bg-stone-100 uppercase sm-t">Categorias</button>
+          <button onclick="openCambonagemModal()" class="px-4 py-2.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl uppercase shadow sm-t">+ Novo Utensílio</button>
+        ` : ''}
+      </div>
+    </div>
+
+    <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-4 fi">
+      <div class="flex flex-col md:flex-row gap-3 justify-between items-center">
+        <div class="relative w-full max-w-md">
+          <input type="text" value="${cbSrch}" oninput="cbSrch=this.value;render()" class="w-full pl-9 pr-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/30" placeholder="Buscar por nome, categoria ou código de série...">
+          <span class="absolute left-3 top-3 text-stone-400 text-xs">🔍</span>
+        </div>
+        ${cbSrch ? `<button onclick="cbSrch='';render()" class="text-xs text-stone-500 hover:text-stone-800 font-bold underline">Limpar busca</button>` : ''}
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-stone-50 text-[10px] font-bold uppercase tracking-wider text-stone-400 border-b border-stone-200">
+              <th class="px-4 py-3">Item / Código</th>
+              <th class="px-4 py-3">Categoria</th>
+              <th class="px-4 py-3">Localização</th>
+              <th class="px-4 py-3">Qtd</th>
+              <th class="px-4 py-3">Observações</th>
+              <th class="px-4 py-3 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+async function adjCbQty(id, delta, cur, min, name) {
+  const nq = Math.max(0, cur + delta);
+  await fsUpd('cambonagem', id, { quantity: nq });
+  if (nq <= min && min > 0) {
+    notif('Estoque Baixo', `${name} atingiu a quantidade crítica.`, 'warning');
+  } else {
+    notif('Ajuste de Cambonagem', `${name}: ${cur} → ${nq}`, 'success');
+  }
+  await addLog(`Cambonagem: ${name} (qtd ${cur} → ${nq})`);
+}
+
+function openCambonagemModal(editId = null) {
+  const item = editId ? S.cambonagem.find(i => i.id === editId) : null;
+  const cats = S.cambonagemCats.map(c => c.name || c).filter(Boolean);
+  if (!cats.includes('Geral')) cats.unshift('Geral');
+
+  const defaultSerial = item?.serialNumber || ('CB-' + Math.floor(100000 + Math.random() * 900000));
+
+  openModal(item ? 'Editar Utensílio' : 'Novo Utensílio de Cambonagem', `
+    <form onsubmit="handleCambonagem(event, '${editId || ''}')" class="space-y-4 text-xs">
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Nome do Utensílio / Item</label>
+        <input type="text" id="cb-n" required value="${item?.name || ''}" placeholder="Ex: Alguidar de Louça Médio" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block font-bold text-stone-500 uppercase mb-1">Número de Série / Código</label>
+          <input type="text" id="cb-sn" required value="${defaultSerial}" placeholder="Ex: CB-102030" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl font-mono focus:outline-none">
+        </div>
+        <div>
+          <label class="block font-bold text-stone-500 uppercase mb-1">Categoria</label>
+          <div class="flex gap-2">
+            <select id="cb-c" class="flex-1 p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+              ${cats.map(c => `<option ${item?.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+            </select>
+            <button type="button" onclick="openCbCatModal()" class="px-2.5 bg-stone-100 hover:bg-stone-200 rounded-xl font-bold">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3">
+        <div>
+          <label class="block font-bold text-stone-500 uppercase mb-1">Localização</label>
+          <input type="text" id="cb-l" required value="${item?.location || 'Prateleira Cambonagem'}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+        </div>
+        <div>
+          <label class="block font-bold text-stone-500 uppercase mb-1">Quantidade</label>
+          <input type="number" min="0" id="cb-q" required value="${item?.quantity ?? 1}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+        </div>
+        <div>
+          <label class="block font-bold text-stone-500 uppercase mb-1">Qtd Mínima</label>
+          <input type="number" min="0" id="cb-m" required value="${item?.minQuantity ?? 0}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">URL da Imagem do Produto (Opcional)</label>
+        <input type="url" id="cb-img" value="${item?.imageUrl || ''}" placeholder="https://exemplo.com/foto.jpg" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+      </div>
+
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Observações</label>
+        <textarea id="cb-o" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none h-16" placeholder="Ex: Reservado para a gira das Almas">${item?.notes || ''}</textarea>
+      </div>
+
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">${item ? 'Atualizar' : 'Salvar Utensílio'}</button>
+      </div>
+    </form>
+  `);
+}
+
+async function handleCambonagem(e, editId) {
+  e.preventDefault();
+  const data = {
+    name: $('cb-n').value.trim(),
+    serialNumber: $('cb-sn').value.trim().toUpperCase(),
+    category: $('cb-c').value,
+    location: $('cb-l').value.trim(),
+    quantity: parseInt($('cb-q').value) || 0,
+    minQuantity: parseInt($('cb-m').value) || 0,
+    imageUrl: $('cb-img').value.trim(),
+    notes: $('cb-o').value.trim()
+  };
+
+  if (editId) {
+    await fsUpd('cambonagem', editId, data);
+    notif('Atualizado', 'Utensílio alterado com sucesso.', 'success');
+  } else {
+    await fsAdd('cambonagem', data);
+    notif('Cadastrado', 'Novo utensílio adicionado!', 'success');
+  }
+  await addLog(`Salvou utensílio de cambonagem: ${data.name}`);
+  closeModal();
+}
+
+function openQrModal(serial, name) {
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(serial)}`;
+  openModal(`Etiqueta QR Code: ${name}`, `
+    <div class="flex flex-col items-center justify-center p-4 text-center space-y-4">
+      <div class="p-4 bg-white border-2 border-stone-900 rounded-2xl shadow-md">
+        <img src="${qrUrl}" alt="QR Code" class="w-48 h-48 mx-auto">
+        <p class="font-mono font-bold text-stone-900 mt-2 text-sm">${serial}</p>
+        <p class="text-xs text-stone-500 font-bold">${name}</p>
+      </div>
+      <p class="text-xs text-stone-500 leading-relaxed max-w-xs">
+        Você pode escanear esse código pela câmera do seu celular para dar baixa ou entrada rápida no estoque.
+      </p>
+      <button onclick="window.print()" class="px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-xl uppercase">Imprimir Etiqueta</button>
+    </div>
+  `);
+}
+
+// CÂMERA DO CELULAR PARA ESCANEAR CÓDIGO
+function openCbCameraScannerModal() {
+  openModal('Leitor de Código via Câmera', `
+    <div class="space-y-4 text-xs text-center">
+      <p class="text-stone-500">Aponte a câmera do seu celular para o QR Code ou código impresso do produto.</p>
+      
+      <div id="reader-container" class="relative overflow-hidden rounded-2xl border-2 border-amber-500 bg-stone-900 min-h-[250px] flex items-center justify-center">
+        <div id="reader" class="w-full"></div>
+      </div>
+
+      <div id="scan-result-card" class="hidden p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-left space-y-2">
+        <span class="block text-[10px] font-bold text-emerald-800 uppercase">Item Encontrado!</span>
+        <h4 id="scanned-name" class="font-bold text-stone-900 text-sm">—</h4>
+        <p class="text-stone-600">Código: <span id="scanned-code" class="font-mono font-bold"></span></p>
+        <div class="flex items-center gap-3 pt-2">
+          <button id="btn-scanned-dec" class="flex-1 py-2 bg-stone-200 hover:bg-stone-300 font-bold rounded-xl text-stone-800 text-xs">− Dar Baixa (-1)</button>
+          <button id="btn-scanned-inc" class="flex-1 py-2 bg-amber-500 hover:bg-amber-600 font-bold rounded-xl text-stone-950 text-xs">+ Entrar (+1)</button>
+        </div>
+      </div>
+
+      <div class="pt-2">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Fechar Câmera</button>
+      </div>
+    </div>
+  `);
+
+  setTimeout(() => {
+    try {
+      if (typeof Html5Qrcode !== 'undefined') {
+        const html5QrCode = new Html5Qrcode("reader");
+        window._qrScannerInstance = html5QrCode;
+
+        html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
+          (decodedText) => {
+            const code = decodedText.trim().toUpperCase();
+            const found = S.cambonagem.find(i => (i.serialNumber || '').toUpperCase() === code || i.id === code);
+            
+            if (found) {
+              $('scan-result-card')?.classList.remove('hidden');
+              $('scanned-name').innerText = found.name;
+              $('scanned-code').innerText = code;
+
+              $('btn-scanned-dec').onclick = () => {
+                adjCbQty(found.id, -1, found.quantity || 0, found.minQuantity || 0, found.name);
+                closeModal();
+              };
+              $('btn-scanned-inc').onclick = () => {
+                adjCbQty(found.id, 1, found.quantity || 0, found.minQuantity || 0, found.name);
+                closeModal();
+              };
+            } else {
+              notif('Código lido', `Nenhum item com código "${code}". Aplicando filtro de busca...`, 'info');
+              cbSrch = code;
+              closeModal();
+              render();
+            }
+          },
+          () => {} // erros ignorados durante varredura
+        ).catch(err => {
+          $('reader-container').innerHTML = `<p class="p-6 text-stone-400">Não foi possível acessar a câmera do dispositivo.<br><span class="text-[10px]">${err.message||''}</span></p>`;
+        });
+      } else {
+        $('reader-container').innerHTML = `<p class="p-6 text-stone-400">Biblioteca leitora de câmera carregando...</p>`;
+      }
+    } catch(err) {
+      console.warn("Erro ao abrir câmera:", err);
+    }
+  }, 300);
+}
+
+function openCbCatModal() {
+  openModal('Nova Categoria de Cambonagem', `
+    <div class="space-y-4 text-xs">
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Nome da Categoria</label>
+        <input type="text" id="ncb" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+      </div>
+      <div class="pt-4 flex justify-end gap-2">
+        <button onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button onclick="saveCbCat()" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Criar</button>
+      </div>
+    </div>
+  `);
+}
+
+async function saveCbCat() {
+  const v = $('ncb')?.value.trim();
+  if (!v) return;
+  await fsAdd('cambonagemCategories', { name: v });
+  closeModal();
+  notif('Categoria criada', v, 'success');
+}
+
+function openManageCbCatsModal() {
+  const list = S.cambonagemCats.map(c => `
+    <div class="flex items-center justify-between p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-xs">
+      <span class="font-bold text-stone-800">${c.name}</span>
+      <div class="flex gap-1">
+        <button onclick="editCbCategoryName('${c.id}', '${(c.name || '').replace(/'/g,"\\'")}')" class="px-2.5 py-1 bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold rounded-lg text-[10px] sm-t">Editar</button>
+        <button onclick="deleteCbCategory('${c.id}', '${(c.name || '').replace(/'/g,"\\'")}')" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-lg text-[10px] sm-t">Excluir</button>
+      </div>
+    </div>
+  `).join('') || '<p class="text-xs text-stone-400 text-center py-4">Nenhuma categoria cadastrada.</p>';
+
+  openModal('Gerenciar Categorias de Cambonagem', `
+    <div class="space-y-4 text-xs">
+      <form onsubmit="handleCreateCbCategory(event)" class="flex gap-2 items-end">
+        <div class="flex-1">
+          <label class="block font-bold text-stone-500 uppercase mb-1">Nova Categoria</label>
+          <input type="text" id="new-cb-cat-input" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none" placeholder="Ex: Louças & Alguidares">
+        </div>
+        <button type="submit" class="px-4 py-2.5 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl h-10 sm-t">Criar</button>
+      </form>
+
+      <div class="border-t border-stone-100 pt-4">
+        <label class="block font-bold text-stone-500 uppercase mb-2">Categorias Atuais</label>
+        <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+          ${list}
+        </div>
+      </div>
+    </div>
+  `);
+}
+
+async function handleCreateCbCategory(e) {
+  e.preventDefault();
+  const val = $('new-cb-cat-input').value.trim();
+  if (!val) return;
+  await fsAdd('cambonagemCategories', { name: val });
+  notif('Sucesso', `Categoria "${val}" criada.`, 'success');
+  openManageCbCatsModal();
+}
+
+function editCbCategoryName(id, oldName) {
+  const newName = window.prompt(`Editar o nome da categoria "${oldName}":`, oldName);
+  if (newName && newName.trim() && newName.trim() !== oldName) {
+    const sanitized = newName.trim();
+    fsUpd('cambonagemCategories', id, { name: sanitized }).then(async () => {
+      const batch = FB().writeBatch(db());
+      let count = 0;
+      S.cambonagem.forEach(item => {
+        if (item.category === oldName) {
+          batch.update(FB().doc(db(), 'cambonagem', item.id), { category: sanitized });
+          count++;
+        }
+      });
+      if (count > 0) await batch.commit();
+      notif('Sucesso', 'Categoria atualizada!', 'success');
+      openManageCbCatsModal();
+    });
+  }
+}
+
+function deleteCbCategory(id, name) {
+  if (!confirm(`Excluir a categoria "${name}"?`)) return;
+  fsDel('cambonagemCategories', id).then(() => {
+    notif('Removida', `Categoria "${name}" excluída.`, 'warning');
+    openManageCbCatsModal();
+  });
+}
+</script>
+
+<script>
+// ══════════════════════════════════════════════════════
 // COZINHA
 // ══════════════════════════════════════════════════════
 function rCozinha(ws,hw){
@@ -895,6 +1301,7 @@ function openFoodModal(){
 }
 async function handleFood(e){e.preventDefault();await fsAdd('foods',{name:$('fo-n').value.trim(),weight:$('fo-w').value.trim(),expiry:$('fo-e').value,location:$('fo-l').value});closeModal();notif('Adicionado','','success');}
 </script>
+
 <script>
 // ══════════════════════════════════════════════════════
 // TECIDOS
@@ -960,7 +1367,9 @@ function openFabModal(cid){
     </div></form>`);
 }
 async function handleFab(e,cid){e.preventDefault();await fsAdd('fabrics',{caixoteId:cid,pieceName:$('fb-n').value.trim(),color:$('fb-c').value.trim(),line:$('fb-l').value.trim(),quantity:parseInt($('fb-q').value)});closeModal();notif('Peça cadastrada','','success');}
+</script>
 
+<script>
 // ══════════════════════════════════════════════════════
 // SECRETARIA
 // ══════════════════════════════════════════════════════
@@ -1345,7 +1754,7 @@ function rAdmin(ws) {
         ${canEdit?`<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
           <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-3">Cadastrar Médium</h3>
           <p class="text-xs text-stone-500 mb-4 leading-relaxed">
-            Preencha os dados para criar automaticamente o e-mail/senha e o perfil do médium no sistema.
+            Preencha os dados abaixo para gerar diretamente as credenciais de e-mail/senha e criar o perfil do médium no terreiro.
           </p>
           <button onclick="openCreateProfile()" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold rounded-xl text-xs uppercase sm-t">Criar Perfil de Médium</button>
         </div>`:''}
@@ -1520,12 +1929,11 @@ async function handleCreateProfile(e) {
 // ══════════════════════════════════════════════════════
 function exportBackup() {
   const data = {
-    version: 4, exportedAt: new Date().toISOString(),
+    version: 5, exportedAt: new Date().toISOString(),
     terreiro: S.cfg.terreiroName,
-    users: S.users, stock: S.stock, schedule: S.schedule,
-    notices: S.notices, presencas: S.presencas,
-    foods: S.foods, freezers: S.freezers,
-    caixotes: S.caixotes, fabrics: S.fabrics,
+    users: S.users, stock: S.stock, cambonagem: S.cambonagem,
+    schedule: S.schedule, notices: S.notices, presencas: S.presencas,
+    foods: S.foods, freezers: S.freezers, caixotes: S.caixotes, fabrics: S.fabrics,
     config: S.cfg
   };
   const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
