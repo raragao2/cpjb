@@ -410,7 +410,7 @@ const TABS = {
   dashboard:  { label:'Início / Dashboard',   icon:'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
   financeiro: { label:'Gestão Financeira',    icon:'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   estoque:    { label:'Almoxarifado',         icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
-  cambonagem: { label:'Cambonagem & Louças',  icon:'M9 3v2m6-2v2M9 5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2M9 5h6' },
+  cambonagem: { label:'Cambonagem',  icon:'M9 3v2m6-2v2M9 5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2M9 5h6' },
   cozinha:    { label:'Cozinha & Despensa',   icon:'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
   tecidos:    { label:'Tecidos & Caixotes',   icon:'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
   secretaria: { label:'Secretaria / Alertas', icon:'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
@@ -1467,6 +1467,19 @@ function deleteCategory(id, name) {
 // CAMBONAGEM & UTENSÍLIOS
 // ══════════════════════════════════════════════════════
 let cbSrch = '';
+let cbSortCol = 'name';
+let cbSortAsc = true;
+
+function formatCbDate(val) {
+  if (!val) return '—';
+  try {
+    const d = typeof val === 'string' ? new Date(val) : (val.toDate ? val.toDate() : new Date(val));
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch (_) {
+    return '—';
+  }
+}
 
 function handleCbSearchInput(val, cursorPos) {
   cbSrch = val;
@@ -1478,13 +1491,55 @@ function handleCbSearchInput(val, cursorPos) {
   }
 }
 
+function toggleCbSort(col) {
+  if (cbSortCol === col) {
+    cbSortAsc = !cbSortAsc;
+  } else {
+    cbSortCol = col;
+    cbSortAsc = true;
+  }
+  render();
+}
+
+function sortIcon(col) {
+  if (cbSortCol !== col) return '<span class="text-stone-300 ml-1">↕</span>';
+  return cbSortAsc ? '<span class="text-amber-600 font-bold ml-1">▲</span>' : '<span class="text-amber-600 font-bold ml-1">▼</span>';
+}
+
 function rCambonagem(ws, hw) {
-  const items = cbSrch ? S.cambonagem.filter(i=>
+  let items = cbSrch ? S.cambonagem.filter(i=>
     i.name?.toLowerCase().includes(cbSrch.toLowerCase()) ||
     i.category?.toLowerCase().includes(cbSrch.toLowerCase()) ||
     i.serialNumber?.toLowerCase().includes(cbSrch.toLowerCase()) ||
     i.location?.toLowerCase().includes(cbSrch.toLowerCase())
-  ) : S.cambonagem;
+  ) : [...S.cambonagem];
+
+  // Ordenação dinâmica baseada na coluna selecionada
+  items.sort((a, b) => {
+    let valA, valB;
+    if (cbSortCol === 'name') {
+      valA = a.name || '';
+      valB = b.name || '';
+      return cbSortAsc ? valA.localeCompare(valB, 'pt-BR') : valB.localeCompare(valA, 'pt-BR');
+    } else if (cbSortCol === 'category') {
+      valA = a.category || 'Geral';
+      valB = b.category || 'Geral';
+      return cbSortAsc ? valA.localeCompare(valB, 'pt-BR') : valB.localeCompare(valA, 'pt-BR');
+    } else if (cbSortCol === 'location') {
+      valA = a.location || '';
+      valB = b.location || '';
+      return cbSortAsc ? valA.localeCompare(valB, 'pt-BR') : valB.localeCompare(valA, 'pt-BR');
+    } else if (cbSortCol === 'quantity') {
+      valA = Number(a.quantity || 0);
+      valB = Number(b.quantity || 0);
+      return cbSortAsc ? valA - valB : valB - valA;
+    } else if (cbSortCol === 'lastModified') {
+      const timeA = a.lastModified ? new Date(a.lastModified).getTime() : (a._ts?.toDate ? a._ts.toDate().getTime() : 0);
+      const timeB = b.lastModified ? new Date(b.lastModified).getTime() : (b._ts?.toDate ? b._ts.toDate().getTime() : 0);
+      return cbSortAsc ? timeA - timeB : timeB - timeA;
+    }
+    return 0;
+  });
 
   const rows = items.length ? items.map(i => {
     const crit = i.quantity <= i.minQuantity;
@@ -1493,6 +1548,7 @@ function rCambonagem(ws, hw) {
       : `<div class="w-10 h-10 bg-amber-50 text-amber-700 border border-amber-200/60 rounded-xl flex items-center justify-center font-bold text-xs shrink-0">🏺</div>`;
 
     const serialClean = (i.serialNumber || 'SN-'+i.id.substring(0,6)).toUpperCase();
+    const lastModDisplay = formatCbDate(i.lastModified || i._ts);
 
     return `<tr class="hover:bg-stone-50/50 text-xs border-b border-stone-100">
       <td class="px-4 py-3">
@@ -1509,17 +1565,23 @@ function rCambonagem(ws, hw) {
       <td class="px-4 py-3">
         <span class="inline-flex px-2.5 py-1 rounded-xl text-xs font-bold ${crit ? 'bg-red-50 text-red-800 border border-red-200 animate-pulse' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'}">${i.quantity || 0} un</span>
       </td>
-      <td class="px-4 py-3 text-stone-400 max-w-xs truncate">${i.notes || '—'}</td>
-      <td class="px-4 py-3 text-right">
-        <div class="flex items-center justify-end gap-1.5">
-          <button onclick="openQrModal('${serialClean}', '${(i.name||'').replace(/'/g,"\\'")}')" class="p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs font-bold" title="Ver QR Code / Etiqueta">
-            📱 QR
+      <td class="px-4 py-3 text-stone-500 font-mono text-[11px] whitespace-nowrap">
+        ${lastModDisplay}
+      </td>
+      <td class="px-4 py-3 text-center whitespace-nowrap ${hw ? 'min-w-[240px]' : ''}">
+        <div class="flex items-center justify-center gap-1.5">
+          <button onclick="openQrModal('${serialClean}', '${(i.name||'').replace(/'/g,"\\'")}')" class="px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs font-bold border border-stone-200 sm-t flex items-center gap-1" title="Ver QR Code / Etiqueta">
+            <span>📱</span> QR
           </button>
           ${hw ? `
-            <button onclick="adjCbQty('${i.id}',-1,${i.quantity||0},${i.minQuantity||0},'${(i.name||'').replace(/'/g,"\\'")}')" class="w-7 h-7 bg-stone-100 hover:bg-stone-200 rounded-lg font-bold text-xs flex items-center justify-center text-stone-700 sm-t">−</button>
-            <button onclick="adjCbQty('${i.id}',1,${i.quantity||0},${i.minQuantity||0},'${(i.name||'').replace(/'/g,"\\'")}')" class="w-7 h-7 bg-amber-500 hover:bg-amber-600 text-stone-950 rounded-lg font-bold text-xs flex items-center justify-center sm-t">+</button>
-            <button onclick="openCambonagemModal('${i.id}')" class="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-lg text-[10px]">Editar</button>
-            <button onclick="fsDel('cambonagem','${i.id}').then(()=>notif('Removido','Utensílio excluído.','warning'))" class="text-xs text-stone-400 hover:text-red-600 p-1">Excluir</button>
+            <button onclick="adjCbQty('${i.id}',-1,${i.quantity||0},${i.minQuantity||0},'${(i.name||'').replace(/'/g,"\\'")}')" class="w-8 h-8 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded-lg font-bold text-sm flex items-center justify-center text-stone-800 sm-t" title="Diminuir 1">−</button>
+            <button onclick="adjCbQty('${i.id}',1,${i.quantity||0},${i.minQuantity||0},'${(i.name||'').replace(/'/g,"\\'")}')" class="w-8 h-8 bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-sm flex items-center justify-center rounded-lg sm-t" title="Adicionar 1">+</button>
+            <button onclick="openCambonagemModal('${i.id}')" class="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-950 font-bold rounded-lg text-xs sm-t flex items-center gap-1 shadow-sm" title="Editar este utensílio">
+              <span>✏️</span> Editar
+            </button>
+            <button onclick="confirmDelCambonagem('${i.id}', '${(i.name||'').replace(/'/g,"\\'")}')" class="px-3 py-1.5 bg-red-100 hover:bg-red-200 border border-red-300 text-red-800 font-bold rounded-lg text-xs sm-t flex items-center gap-1 shadow-sm" title="Excluir este utensílio">
+              <span>🗑️</span> Excluir
+            </button>
           ` : ''}
         </div>
       </td>
@@ -1529,15 +1591,15 @@ function rCambonagem(ws, hw) {
   ws.innerHTML = `
     <div class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 fi">
       <div>
-        <h1 class="font-cinzel text-2xl font-bold text-stone-900">Cambonagem & Louças</h1>
+        <h1 class="font-cinzel text-2xl font-bold text-stone-900">Cambonagem</h1>
         <p class="text-xs text-stone-500">Gestão rápida de louças, alguidares, guias e utensílios litúrgicos</p>
       </div>
       <div class="flex flex-wrap gap-2 w-full md:w-auto">
-        <button onclick="openCbCameraScannerModal()" class="flex-1 md:flex-none px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-bold rounded-xl uppercase shadow sm-t flex items-center justify-center gap-2">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
-          Escanear Código (Câmera)
-        </button>
         ${hw ? `
+          <button onclick="openCbCameraScannerModal()" class="flex-1 md:flex-none px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-bold rounded-xl uppercase shadow sm-t flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
+            Escanear Código (Câmera)
+          </button>
           <button onclick="openManageCbCatsModal()" class="px-3 py-2.5 border border-stone-300 text-stone-700 text-xs font-bold rounded-xl hover:bg-stone-100 uppercase sm-t">Categorias</button>
           <button onclick="openCambonagemModal()" class="px-4 py-2.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl uppercase shadow sm-t">+ Novo Utensílio</button>
         ` : ''}
@@ -1554,15 +1616,25 @@ function rCambonagem(ws, hw) {
       </div>
 
       <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
+        <table class="w-full text-left border-collapse min-w-[840px]">
           <thead>
-            <tr class="bg-stone-50 text-[10px] font-bold uppercase tracking-wider text-stone-400 border-b border-stone-200">
-              <th class="px-4 py-3">Item / Código</th>
-              <th class="px-4 py-3">Categoria</th>
-              <th class="px-4 py-3">Localização</th>
-              <th class="px-4 py-3">Qtd</th>
-              <th class="px-4 py-3">Observações</th>
-              <th class="px-4 py-3 text-right">Ações</th>
+            <tr class="bg-stone-50 text-[10px] font-bold uppercase tracking-wider text-stone-500 border-b border-stone-200">
+              <th onclick="toggleCbSort('name')" class="px-4 py-3 cursor-pointer hover:bg-stone-100 select-none transition-colors" title="Clique para ordenar por Nome">
+                <div class="flex items-center gap-1"><span>Item / Código</span>${sortIcon('name')}</div>
+              </th>
+              <th onclick="toggleCbSort('category')" class="px-4 py-3 cursor-pointer hover:bg-stone-100 select-none transition-colors" title="Clique para ordenar por Categoria">
+                <div class="flex items-center gap-1"><span>Categoria</span>${sortIcon('category')}</div>
+              </th>
+              <th onclick="toggleCbSort('location')" class="px-4 py-3 cursor-pointer hover:bg-stone-100 select-none transition-colors" title="Clique para ordenar por Localização">
+                <div class="flex items-center gap-1"><span>Localização</span>${sortIcon('location')}</div>
+              </th>
+              <th onclick="toggleCbSort('quantity')" class="px-4 py-3 cursor-pointer hover:bg-stone-100 select-none transition-colors" title="Clique para ordenar por Quantidade">
+                <div class="flex items-center gap-1"><span>Qtd</span>${sortIcon('quantity')}</div>
+              </th>
+              <th onclick="toggleCbSort('lastModified')" class="px-4 py-3 cursor-pointer hover:bg-stone-100 select-none transition-colors" title="Clique para ordenar por Data de Modificação">
+                <div class="flex items-center gap-1"><span>Última Modificação</span>${sortIcon('lastModified')}</div>
+              </th>
+              <th class="px-4 py-3 text-center ${hw ? 'min-w-[240px]' : ''}">Ações</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -1571,9 +1643,26 @@ function rCambonagem(ws, hw) {
     </div>`;
 }
 
+function confirmDelCambonagem(id, name) {
+  openModal('Excluir Utensílio', `
+    <div class="space-y-4 text-xs">
+      <div class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 leading-relaxed">
+        Tem certeza que deseja excluir o item <strong>${name}</strong>?<br>Esta ação não poderá ser desfeita.
+      </div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="button" onclick="fsDel('cambonagem','${id}').then(()=>{ closeModal(); notif('Removido', 'Utensílio excluído.', 'warning'); })" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold">Excluir</button>
+      </div>
+    </div>
+  `);
+}
+
 async function adjCbQty(id, delta, cur, min, name) {
   const nq = Math.max(0, cur + delta);
-  await fsUpd('cambonagem', id, { quantity: nq });
+  await fsUpd('cambonagem', id, { 
+    quantity: nq,
+    lastModified: new Date().toISOString()
+  });
   if (nq <= min && min > 0) {
     notif('Estoque Baixo', `${name} atingiu a quantidade crítica.`, 'warning');
   } else {
@@ -1663,7 +1752,8 @@ async function handleCambonagem(e, editId) {
     quantity: parseInt($('cb-q').value) || 0,
     minQuantity: parseInt($('cb-m').value) || 0,
     imageUrl: $('cb-img')?.value || '',
-    notes: $('cb-o').value.trim()
+    notes: $('cb-o').value.trim(),
+    lastModified: new Date().toISOString()
   };
 
   if (editId) {
@@ -1855,87 +1945,390 @@ function deleteCbCategory(id, name) {
     openManageCbCatsModal();
   });
 }
-</script>
-
-<script>
-'use strict';
 
 // ══════════════════════════════════════════════════════
 // COZINHA
 // ══════════════════════════════════════════════════════
-function rCozinha(ws,hw){
-  const dry = S.foods.filter(f=>f.location==='Despensa Seca').map(f=>`
-    <div class="flex justify-between items-center p-3 rounded-xl border border-stone-100 bg-stone-50 text-xs">
-      <div><span class="font-bold text-stone-700 block">${f.name}</span><span class="text-[10px] text-stone-400">Validade: ${f.expiry}</span></div>
-      <div class="flex items-center gap-3"><span class="font-semibold">${f.weight}</span>
-        ${hw?`<button onclick="fsDel('foods','${f.id}').then(()=>notif('Removido','','warning'))" class="text-xs text-stone-400 hover:text-red-600">Excluir</button>`:''}
-      </div>
-    </div>`).join('') || '<p class="text-xs text-stone-400 text-center py-4">Despensa vazia.</p>';
+function rCozinha(ws, hw) {
+  const todayStr = new Date().toISOString().split('T')[0];
 
-  const frzHtml = S.freezers.map(fr=>{
-    const items = S.foods.filter(f=>f.location===fr.id).map(f=>`
-      <div class="flex justify-between items-center py-2 border-b border-stone-100 last:border-0 text-xs">
-        <div><span class="font-medium text-stone-700 block">${f.name}</span><span class="text-[9px] text-stone-400">Vence: ${f.expiry}</span></div>
-        <div class="flex items-center gap-2"><span class="font-bold text-[10px]">${f.weight}</span>
-          ${hw?`<button onclick="fsDel('foods','${f.id}').then(()=>notif('Removido','','warning'))" class="text-xs text-stone-400 hover:text-red-650">Excluir</button>`:''}
+  function getExpiryBadge(exp) {
+    if (!exp) return '';
+    if (exp < todayStr) {
+      return `<span class="inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-800 border border-red-200">Vencido</span>`;
+    }
+    const diffDays = Math.ceil((new Date(exp + 'T00:00:00') - new Date(todayStr + 'T00:00:00')) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 5) {
+      return `<span class="inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200">Vence em ${diffDays}d</span>`;
+    }
+    return `<span class="text-[9px] text-stone-400">Val: ${exp.split('-').reverse().slice(0, 2).join('/')}</span>`;
+  }
+
+  const dry = S.foods.filter(f => f.location === 'Despensa Seca').map(f => `
+    <div class="p-3 rounded-2xl border border-stone-200/80 bg-stone-50/70 hover:bg-stone-50 text-xs transition-all space-y-2">
+      <div class="flex justify-between items-start gap-2">
+        <div class="min-w-0 flex-1">
+          <span class="font-bold text-stone-800 block text-sm truncate">${f.name}</span>
+          <div class="flex items-center gap-1.5 mt-0.5">
+            <span class="font-semibold text-stone-600">${f.weight}</span>
+            ${getExpiryBadge(f.expiry)}
+          </div>
         </div>
-      </div>`).join('') || '<span class="text-xs text-stone-400 block py-4 text-center">Freezer vazio.</span>';
-    return `<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
-      <div class="flex justify-between items-center border-b border-stone-100 pb-3 mb-3">
-        <span class="font-cinzel text-xs font-bold text-stone-900">❄️ ${fr.name}</span>
-        ${hw?`<button onclick="delFrz('${fr.id}')" class="text-[10px] text-red-500 font-semibold">Remover</button>`:''}
+        ${hw ? `
+          <div class="flex items-center gap-1 shrink-0">
+            <button onclick="openTransferFoodModal('${f.id}')" title="Transferir para Freezer" class="p-1.5 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 rounded-lg text-xs font-bold sm-t">
+              ❄️ Mover
+            </button>
+            <button onclick="openEditFoodModal('${f.id}')" title="Editar" class="p-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 rounded-lg text-xs font-bold sm-t">
+              ✏️
+            </button>
+            <button onclick="confirmDelFood('${f.id}', '${(f.name || '').replace(/'/g, "\\'")}')" title="Excluir" class="p-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded-lg text-xs font-bold sm-t">
+              🗑️
+            </button>
+          </div>
+        ` : ''}
       </div>
-      <div class="space-y-1 max-h-[180px] overflow-y-auto">${items}</div>
+    </div>`).join('') || '<p class="text-xs text-stone-400 text-center py-6">Despensa seca vazia.</p>';
+
+  const frzHtml = S.freezers.map(fr => {
+    const items = S.foods.filter(f => f.location === fr.id).map(f => `
+      <div class="flex justify-between items-center py-2.5 px-3 rounded-xl border border-stone-100 bg-stone-50/50 hover:bg-stone-50 text-xs transition-all">
+        <div class="min-w-0 flex-1 pr-2">
+          <span class="font-bold text-stone-800 block truncate">${f.name}</span>
+          <div class="flex items-center gap-1.5 mt-0.5">
+            <span class="font-semibold text-stone-600 text-[11px]">${f.weight}</span>
+            ${getExpiryBadge(f.expiry)}
+          </div>
+        </div>
+        ${hw ? `
+          <div class="flex items-center gap-1 shrink-0">
+            <button onclick="openTransferFoodModal('${f.id}')" title="Transferir item" class="p-1 bg-stone-200/80 hover:bg-sky-100 hover:text-sky-800 text-stone-600 rounded-lg text-xs font-bold sm-t">
+              ⇄ Mover
+            </button>
+            <button onclick="openEditFoodModal('${f.id}')" title="Editar" class="p-1 bg-stone-200/80 hover:bg-amber-100 hover:text-amber-900 text-stone-600 rounded-lg text-xs font-bold sm-t">
+              ✏️
+            </button>
+            <button onclick="confirmDelFood('${f.id}', '${(f.name || '').replace(/'/g, "\\'")}')" title="Excluir" class="p-1 bg-stone-200/80 hover:bg-red-100 hover:text-red-700 text-stone-600 rounded-lg text-xs font-bold sm-t">
+              🗑️
+            </button>
+          </div>
+        ` : ''}
+      </div>`).join('') || '<span class="text-xs text-stone-400 block py-6 text-center italic">Este freezer está vazio.</span>';
+
+    return `<div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm flex flex-col justify-between">
+      <div>
+        <div class="flex justify-between items-center border-b border-stone-100 pb-3 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="font-cinzel text-xs font-bold text-stone-900">❄️ ${fr.name}</span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-600">
+              ${S.foods.filter(f => f.location === fr.id).length} itens
+            </span>
+          </div>
+          ${hw ? `
+            <div class="flex items-center gap-1">
+              <button onclick="openRenameFreezerModal('${fr.id}', '${(fr.name || '').replace(/'/g, "\\'")}')" class="text-[11px] text-stone-500 hover:text-stone-800 px-2 py-1 bg-stone-100 rounded-lg font-bold sm-t">Renomear</button>
+              <button onclick="delFrz('${fr.id}')" class="text-[11px] text-red-500 hover:text-red-700 px-2 py-1 bg-red-50 rounded-lg font-bold sm-t">Remover</button>
+            </div>
+          ` : ''}
+        </div>
+        <div class="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">${items}</div>
+      </div>
+      ${hw ? `
+        <button onclick="openFoodModal('${fr.id}')" class="w-full mt-3 py-2 bg-stone-50 hover:bg-stone-100 border border-dashed border-stone-200 rounded-xl text-stone-700 font-bold text-xs sm-t">
+          + Adicionar neste Freezer
+        </button>
+      ` : ''}
     </div>`;
   }).join('') || '<div class="col-span-full p-8 bg-white border border-dashed border-stone-200 rounded-2xl text-center text-stone-400 text-xs">Nenhum freezer cadastrado.</div>';
 
   ws.innerHTML = `
-    <div class="mb-6 flex flex-col md:flex-row justify-between items-start gap-2">
-      <div><h1 class="font-cinzel text-2xl font-bold text-stone-900">Cozinha & Despensa</h1><p class="text-xs text-stone-500">Suprimentos e conservação para as festividades</p></div>
-      ${hw?`<div class="flex gap-2">
-        <button onclick="openFrzModal()" class="px-3 py-2 border border-stone-300 text-stone-700 text-xs font-bold rounded-xl hover:bg-stone-100 uppercase">Criar Freezer</button>
-        <button onclick="openFoodModal()" class="px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-xl uppercase shadow">Adicionar Alimento</button>
-      </div>`:''}
-    </div>
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div class="lg:col-span-1 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
-        <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-100 pb-3 mb-4">🌾 Despensa Seca</h3>
-        <div class="space-y-2 max-h-[450px] overflow-y-auto">${dry}</div>
+    <div class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 fi">
+      <div>
+        <h1 class="font-cinzel text-2xl font-bold text-stone-900">Cozinha & Despensa</h1>
+        <p class="text-xs text-stone-500">Suprimentos, conservação e validade dos alimentos das giras e festividades</p>
       </div>
-      <div class="lg:col-span-2 space-y-4">
-        <h3 class="font-cinzel text-sm font-bold text-stone-900 border-b border-stone-200 pb-2">Conservação / Freezers</h3>
+      ${hw ? `
+        <div class="flex flex-wrap gap-2 w-full md:w-auto">
+          <button onclick="openFrzModal()" class="px-3.5 py-2.5 border border-stone-300 text-stone-700 text-xs font-bold rounded-xl hover:bg-stone-100 uppercase sm-t">
+            + Criar Freezer
+          </button>
+          <button onclick="openFoodModal()" class="px-4 py-2.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl uppercase shadow sm-t">
+            + Lançar Alimento
+          </button>
+        </div>
+      ` : ''}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 fi">
+      <!-- Despensa Seca -->
+      <div class="lg:col-span-4 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm flex flex-col">
+        <div class="flex justify-between items-center border-b border-stone-100 pb-3 mb-4">
+          <h3 class="font-cinzel text-sm font-bold text-stone-900">🌾 Despensa Seca</h3>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+            ${S.foods.filter(f => f.location === 'Despensa Seca').length} itens
+          </span>
+        </div>
+        <div class="space-y-2 max-h-[500px] overflow-y-auto pr-1 flex-1">${dry}</div>
+        ${hw ? `
+          <button onclick="openFoodModal('Despensa Seca')" class="w-full mt-4 py-2 bg-stone-50 hover:bg-stone-100 border border-dashed border-stone-200 rounded-xl text-stone-700 font-bold text-xs sm-t">
+            + Adicionar na Despensa Seca
+          </button>
+        ` : ''}
+      </div>
+
+      <!-- Freezers -->
+      <div class="lg:col-span-8 space-y-4">
+        <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+          <h3 class="font-cinzel text-sm font-bold text-stone-900">❄️ Conservação & Freezers</h3>
+          <span class="text-xs text-stone-500 font-medium">${S.freezers.length} freezers ativos</span>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">${frzHtml}</div>
       </div>
     </div>`;
 }
 
-function openFrzModal(){
-  openModal('Criar Freezer',`<form onsubmit="handleFrz(event)" class="space-y-4 text-xs">
-    <div><label class="block font-bold text-stone-500 uppercase mb-1">Nome</label><input type="text" id="fr-n" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-    <div class="pt-4 flex justify-end gap-2">
-      <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
-      <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Salvar</button>
-    </div></form>`);
+function openFrzModal() {
+  openModal('Criar Freezer', `
+    <form onsubmit="handleFrz(event)" class="space-y-4 text-xs">
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Identificação / Nome do Freezer</label>
+        <input type="text" id="fr-n" required placeholder="Ex: Freezer Horizontal 01 (Carnes)" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+      </div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Salvar Freezer</button>
+      </div>
+    </form>`);
 }
-async function handleFrz(e){e.preventDefault();await fsAdd('freezers',{name:$('fr-n').value.trim()});closeModal();notif('Freezer criado','','success');}
-async function delFrz(id){if(S.foods.some(f=>f.location===id)){notif('Atenção','Esvazie antes de remover.','error');return;}await fsDel('freezers',id);notif('Removido','','warning');}
-function openFoodModal(){
-  const fOpts = S.freezers.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
-  openModal('Lançar Alimento',`<form onsubmit="handleFood(event)" class="space-y-4 text-xs">
-    <div><label class="block font-bold text-stone-500 uppercase mb-1">Nome</label><input type="text" id="fo-n" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-    <div class="grid grid-cols-2 gap-4">
-      <div><label class="block font-bold text-stone-500 uppercase mb-1">Peso/Medida</label><input type="text" id="fo-w" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-      <div><label class="block font-bold text-stone-500 uppercase mb-1">Validade</label><input type="date" id="fo-e" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-    </div>
-    <div><label class="block font-bold text-stone-500 uppercase mb-1">Local</label>
-      <select id="fo-l" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"><option value="Despensa Seca">Despensa Seca</option>${fOpts}</select>
-    </div>
-    <div class="pt-4 flex justify-end gap-2">
-      <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
-      <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Lançar</button>
-    </div></form>`);
+
+async function handleFrz(e) {
+  e.preventDefault();
+  const name = $('fr-n').value.trim();
+  await fsAdd('freezers', { name });
+  await addLog(`Criou freezer: ${name}`);
+  closeModal();
+  notif('Freezer criado com sucesso!', '', 'success');
 }
-async function handleFood(e){e.preventDefault();await fsAdd('foods',{name:$('fo-n').value.trim(),weight:$('fo-w').value.trim(),expiry:$('fo-e').value,location:$('fo-l').value});closeModal();notif('Adicionado','','success');}
+
+function openRenameFreezerModal(id, currentName) {
+  openModal('Renomear Freezer', `
+    <form onsubmit="handleRenameFreezer(event, '${id}')" class="space-y-4 text-xs">
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Novo Nome do Freezer</label>
+        <input type="text" id="fr-rename" required value="${currentName}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+      </div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Salvar</button>
+      </div>
+    </form>
+  `);
+}
+
+async function handleRenameFreezer(e, id) {
+  e.preventDefault();
+  const newName = $('fr-rename').value.trim();
+  if (!newName) return;
+  await fsUpd('freezers', id, { name: newName });
+  await addLog(`Renomeou freezer para: ${newName}`);
+  closeModal();
+  notif('Freezer renomeado!', '', 'success');
+}
+
+async function delFrz(id) {
+  const count = S.foods.filter(f => f.location === id).length;
+  if (count > 0) {
+    notif('Atenção', `Este freezer contém ${count} itens. Transfira ou remova os alimentos antes de excluí-lo.`, 'error');
+    return;
+  }
+  openModal('Excluir Freezer', `
+    <div class="space-y-4 text-xs">
+      <div class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 leading-relaxed">
+        Tem certeza que deseja excluir este freezer?
+      </div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="button" onclick="confirmDeleteFreezerAction('${id}')" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold">Excluir</button>
+      </div>
+    </div>
+  `);
+}
+
+async function confirmDeleteFreezerAction(id) {
+  await fsDel('freezers', id);
+  closeModal();
+  notif('Freezer excluído', '', 'warning');
+}
+
+function openFoodModal(preselectedLocation = 'Despensa Seca') {
+  const fOpts = S.freezers.map(f => `<option value="${f.id}" ${preselectedLocation === f.id ? 'selected' : ''}>${f.name}</option>`).join('');
+  openModal('Lançar Alimento', `
+    <form onsubmit="handleFood(event)" class="space-y-4 text-xs">
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Nome do Alimento</label>
+        <input type="text" id="fo-n" required placeholder="Ex: Peito de Frango Congelado" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block font-bold text-stone-500 uppercase mb-1">Peso / Quantidade</label>
+          <input type="text" id="fo-w" required placeholder="Ex: 5 kg ou 3 pacotes" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+        </div>
+        <div>
+          <label class="block font-bold text-stone-500 uppercase mb-1">Data de Validade</label>
+          <input type="date" id="fo-e" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+        </div>
+      </div>
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Local de Armazenamento</label>
+        <select id="fo-l" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+          <option value="Despensa Seca" ${preselectedLocation === 'Despensa Seca' ? 'selected' : ''}>🌾 Despensa Seca</option>
+          ${fOpts}
+        </select>
+      </div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Salvar Alimento</button>
+      </div>
+    </form>`);
+}
+
+async function handleFood(e) {
+  e.preventDefault();
+  const data = {
+    name: $('fo-n').value.trim(),
+    weight: $('fo-w').value.trim(),
+    expiry: $('fo-e').value,
+    location: $('fo-l').value
+  };
+  await fsAdd('foods', data);
+  await addLog(`Cadastrou alimento: ${data.name} (${data.location})`);
+  closeModal();
+  notif('Alimento adicionado!', '', 'success');
+}
+
+// EDIÇÃO DE ALIMENTO
+function openEditFoodModal(id) {
+  const item = S.foods.find(f => f.id === id);
+  if (!item) return;
+
+  const fOpts = S.freezers.map(f => `<option value="${f.id}" ${item.location === f.id ? 'selected' : ''}>${f.name}</option>`).join('');
+
+  openModal(`Editar Alimento: ${item.name}`, `
+    <form onsubmit="handleEditFood(event, '${id}')" class="space-y-4 text-xs">
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Nome do Alimento</label>
+        <input type="text" id="efo-n" required value="${item.name || ''}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block font-bold text-stone-500 uppercase mb-1">Peso / Medida</label>
+          <input type="text" id="efo-w" required value="${item.weight || ''}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+        </div>
+        <div>
+          <label class="block font-bold text-stone-500 uppercase mb-1">Validade</label>
+          <input type="date" id="efo-e" required value="${item.expiry || ''}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+        </div>
+      </div>
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Localização</label>
+        <select id="efo-l" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+          <option value="Despensa Seca" ${item.location === 'Despensa Seca' ? 'selected' : ''}>🌾 Despensa Seca</option>
+          ${fOpts}
+        </select>
+      </div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Salvar Alterações</button>
+      </div>
+    </form>
+  `);
+}
+
+async function handleEditFood(e, id) {
+  e.preventDefault();
+  const data = {
+    name: $('efo-n').value.trim(),
+    weight: $('efo-w').value.trim(),
+    expiry: $('efo-e').value,
+    location: $('efo-l').value
+  };
+  await fsUpd('foods', id, data);
+  await addLog(`Editou alimento: ${data.name}`);
+  closeModal();
+  notif('Alimento atualizado!', '', 'success');
+}
+
+// TRANSFERÊNCIA RÁPIDA DE ALIMENTO
+function openTransferFoodModal(id) {
+  const item = S.foods.find(f => f.id === id);
+  if (!item) return;
+
+  const curLocationName = item.location === 'Despensa Seca'
+    ? '🌾 Despensa Seca'
+    : (S.freezers.find(fr => fr.id === item.location)?.name ? `❄️ ${S.freezers.find(fr => fr.id === item.location).name}` : 'Local Antigo');
+
+  const fOpts = S.freezers.map(f => `
+    <option value="${f.id}" ${item.location === f.id ? 'disabled class="text-stone-400"' : ''}>
+      ❄️ ${f.name} ${item.location === f.id ? '(Local atual)' : ''}
+    </option>
+  `).join('');
+
+  openModal(`Mover: ${item.name}`, `
+    <form onsubmit="handleTransferFood(event, '${id}')" class="space-y-4 text-xs">
+      <div class="p-3 bg-stone-50 border border-stone-200 rounded-xl">
+        <span class="block text-[10px] uppercase font-bold text-stone-400">Local Atual</span>
+        <span class="text-xs font-bold text-stone-800">${curLocationName}</span>
+        <span class="text-[10px] text-stone-500 block mt-0.5">Quantidade: ${item.weight} | Validade: ${item.expiry}</span>
+      </div>
+
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Transferir Para:</label>
+        <select id="tf-dest" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none font-medium">
+          <option value="Despensa Seca" ${item.location === 'Despensa Seca' ? 'disabled class="text-stone-400"' : ''}>
+            🌾 Despensa Seca ${item.location === 'Despensa Seca' ? '(Local atual)' : ''}
+          </option>
+          ${fOpts}
+        </select>
+      </div>
+
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white rounded-xl font-bold">Efetuar Transferência</button>
+      </div>
+    </form>
+  `);
+}
+
+async function handleTransferFood(e, id) {
+  e.preventDefault();
+  const targetLocation = $('tf-dest').value;
+  const item = S.foods.find(f => f.id === id);
+  if (!item) return;
+
+  const targetName = targetLocation === 'Despensa Seca'
+    ? 'Despensa Seca'
+    : (S.freezers.find(f => f.id === targetLocation)?.name || 'Freezer');
+
+  await fsUpd('foods', id, { location: targetLocation });
+  await addLog(`Transferiu alimento: ${item.name} → ${targetName}`);
+  closeModal();
+  notif('Item transferido!', `${item.name} movido para ${targetName}.`, 'success');
+}
+
+// CONFIRMAR EXCLUSÃO DE ALIMENTO
+function confirmDelFood(id, name) {
+  openModal('Excluir Alimento', `
+    <div class="space-y-4 text-xs">
+      <div class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 leading-relaxed">
+        Deseja realmente remover o alimento <strong>${name}</strong>?
+      </div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="button" onclick="fsDel('foods','${id}').then(()=>{ closeModal(); notif('Removido', 'Alimento excluído.', 'warning'); })" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold">Excluir</button>
+      </div>
+    </div>
+  `);
+}
 </script>
 
 <script>
@@ -1945,6 +2338,7 @@ async function handleFood(e){e.preventDefault();await fsAdd('foods',{name:$('fo-
 // TECIDOS & CAIXOTES
 // ══════════════════════════════════════════════════════
 let fbSrch = '';
+let cxSortOrder = 'numDesc'; // 'numDesc' (Maior pro menor) | 'numAsc' (Menor pro maior) | 'nameAsc'
 
 function handleFbSearchInput(val, cursorPos) {
   fbSrch = val;
@@ -1961,10 +2355,47 @@ function toggleCaixoteExpansion(boxId) {
   render();
 }
 
-function rTecidos(ws,hw){
-  const boxes = S.caixotes.map(box=>{
-    let fabs = S.fabrics.filter(f=>f.caixoteId===box.id);
-    if(fbSrch) fabs=fabs.filter(f=>f.pieceName?.toLowerCase().includes(fbSrch.toLowerCase())||f.line?.toLowerCase().includes(fbSrch.toLowerCase()));
+function extractBoxNumber(name) {
+  const match = (name || '').match(/\d+/);
+  return match ? parseInt(match[0], 10) : 0;
+}
+
+async function toggleAllCaixotes(openState) {
+  const batch = FB().writeBatch(db());
+  S.caixotes.forEach(box => {
+    batch.update(FB().doc(db(), 'caixotes', box.id), { isOpen: openState });
+  });
+  await batch.commit();
+  notif(openState ? 'Caixotes abertos' : 'Caixotes recolhidos', '', 'info');
+}
+
+function rTecidos(ws, hw) {
+  // Ordenação dos caixotes
+  let sortedBoxes = [...S.caixotes];
+  sortedBoxes.sort((a, b) => {
+    const numA = extractBoxNumber(a.name);
+    const numB = extractBoxNumber(b.name);
+
+    if (cxSortOrder === 'numDesc') {
+      if (numB !== numA) return numB - numA;
+      return (b.name || '').localeCompare(a.name || '', 'pt-BR');
+    } else if (cxSortOrder === 'numAsc') {
+      if (numA !== numB) return numA - numB;
+      return (a.name || '').localeCompare(b.name || '', 'pt-BR');
+    } else {
+      return (a.name || '').localeCompare(b.name || '', 'pt-BR');
+    }
+  });
+
+  const boxes = sortedBoxes.map(box => {
+    let fabs = S.fabrics.filter(f => f.caixoteId === box.id);
+    if (fbSrch) {
+      fabs = fabs.filter(f => 
+        f.pieceName?.toLowerCase().includes(fbSrch.toLowerCase()) || 
+        f.line?.toLowerCase().includes(fbSrch.toLowerCase()) ||
+        f.color?.toLowerCase().includes(fbSrch.toLowerCase())
+      );
+    }
     
     const isExpanded = !!S.caixoteExpanded[box.id];
     const visibleFabs = isExpanded ? fabs : fabs.slice(0, 3);
@@ -1972,104 +2403,383 @@ function rTecidos(ws,hw){
 
     const list = visibleFabs.map(fb => {
       const imgHtml = fb.imageUrl?.trim()
-        ? `<img src="${fb.imageUrl}" onclick="openImagePreviewModal('${fb.imageUrl}', '${(fb.pieceName||'').replace(/'/g,"\\'")}')" class="w-8 h-8 object-cover rounded-lg border border-stone-200 shrink-0 cursor-pointer hover:opacity-80 sm-t">`
-        : `<div class="w-8 h-8 bg-stone-100 text-stone-400 border border-stone-200 rounded-lg flex items-center justify-center text-[10px] shrink-0 font-bold">👕</div>`;
+        ? `<img src="${fb.imageUrl}" onclick="openImagePreviewModal('${fb.imageUrl}', '${(fb.pieceName||'').replace(/'/g,"\\'")}')" class="w-9 h-9 object-cover rounded-xl border border-stone-200 shrink-0 cursor-pointer hover:opacity-80 sm-t" title="Clique para ampliar">`
+        : `<div class="w-9 h-9 bg-amber-50 text-amber-800 border border-amber-200/60 rounded-xl flex items-center justify-center text-xs shrink-0 font-bold">👕</div>`;
 
-      return `<div class="flex justify-between items-center py-2 border-b border-stone-100 last:border-0 text-xs">
+      return `<div class="flex justify-between items-center py-2.5 px-2.5 rounded-xl border border-stone-100 bg-stone-50/40 hover:bg-stone-50 text-xs transition-all">
         <div class="flex items-center gap-2.5 min-w-0 pr-2">
           ${imgHtml}
           <div class="truncate">
-            <span class="font-bold text-stone-700 block truncate">${fb.pieceName}</span>
-            <span class="text-[9px] text-stone-400">Cor: ${fb.color} | Linha: ${fb.line}</span>
+            <span class="font-bold text-stone-800 block truncate">${fb.pieceName}</span>
+            <span class="text-[10px] text-stone-400">Cor: ${fb.color || '—'} | Linha: ${fb.line || '—'}</span>
           </div>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <span class="px-2 py-0.5 rounded-full bg-stone-100 font-bold text-[10px]">${fb.quantity} peças</span>
-          ${hw?`<button onclick="fsDel('fabrics','${fb.id}').then(()=>notif('Removido','','warning'))" class="text-xs text-stone-400 hover:text-red-650">Remover</button>`:''}
+        <div class="flex items-center gap-1.5 shrink-0">
+          <span class="px-2 py-0.5 rounded-full bg-stone-100 border border-stone-200 font-bold text-[10px] text-stone-700">${fb.quantity} un</span>
+          ${hw ? `
+            <button onclick="openTransferFabModal('${fb.id}')" title="Mover para outro caixote" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 rounded-lg text-[10px] font-bold sm-t">
+              ⇄ Mover
+            </button>
+            <button onclick="openEditFabModal('${fb.id}')" title="Editar peça" class="px-2 py-1 bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-700 rounded-lg text-[10px] font-bold sm-t">
+              ✏️
+            </button>
+            <button onclick="confirmDelFab('${fb.id}', '${(fb.pieceName||'').replace(/'/g,"\\'")}')" title="Excluir peça" class="px-2 py-1 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded-lg text-[10px] font-bold sm-t">
+              🗑️
+            </button>
+          ` : ''}
         </div>
       </div>`;
-    }).join('') || '<span class="text-xs text-stone-400 block py-4 text-center">Vazio.</span>';
+    }).join('') || '<span class="text-xs text-stone-400 block py-4 text-center italic">Nenhuma peça neste caixote.</span>';
 
-    return `<div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
-      <button onclick="fsUpd('caixotes','${box.id}',{isOpen:${!box.isOpen}})" class="w-full flex justify-between items-center px-5 py-4 bg-stone-50/50 hover:bg-stone-50 focus:outline-none">
-        <div><h4 class="font-cinzel font-bold text-xs text-stone-900 text-left">${box.name}</h4><span class="text-[10px] text-stone-400">${fabs.length} peças cadastradas</span></div>
-        <span class="${box.isOpen?'rotate-180':''} transition-transform">▼</span>
-      </button>
-      <div class="${box.isOpen?'block':'hidden'} px-5 py-3">
-        <div class="space-y-1 mb-2 max-h-[280px] overflow-y-auto">${list}</div>
-        
-        ${hasMore ? `
-          <button onclick="toggleCaixoteExpansion('${box.id}')" class="w-full py-1.5 text-[11px] font-bold text-amber-700 hover:text-amber-900 text-center block mb-2 sm-t">
-            ${isExpanded ? '▲ Recolher lista' : `+ ${fabs.length - 3} itens adicionais... (Expandir)`}
+    return `<div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col justify-between">
+      <div>
+        <div class="w-full flex justify-between items-center px-5 py-4 bg-stone-50/70 border-b border-stone-100">
+          <button onclick="fsUpd('caixotes','${box.id}',{isOpen:${!box.isOpen}})" class="flex-1 flex items-center justify-between pr-3 text-left focus:outline-none group">
+            <div>
+              <div class="flex items-center gap-2">
+                <h4 class="font-cinzel font-bold text-xs text-stone-900 group-hover:text-amber-800 sm-t">${box.name}</h4>
+                <span class="px-1.5 py-0.2 rounded font-mono text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200/80">#${extractBoxNumber(box.name)}</span>
+              </div>
+              <span class="text-[10px] text-stone-400">${fabs.length} peças cadastradas</span>
+            </div>
+            <span class="${box.isOpen ? 'rotate-180' : ''} transition-transform text-xs text-stone-400 group-hover:text-stone-700">▼</span>
           </button>
-        ` : ''}
-
-        ${hw?`<button onclick="openFabModal('${box.id}')" class="w-full py-2 bg-stone-50 hover:bg-stone-100 text-stone-800 border border-dashed border-stone-200 font-bold rounded-xl text-xs">+ Adicionar neste caixote</button>`:''}
+          ${hw ? `
+            <div class="flex items-center gap-1 border-l border-stone-200 pl-2">
+              <button onclick="openRenameCaixoteModal('${box.id}', '${(box.name || '').replace(/'/g, "\\'")}')" class="p-1 text-stone-400 hover:text-stone-800 text-xs font-bold" title="Renomear caixote">✏️</button>
+              <button onclick="confirmDelCaixote('${box.id}', '${(box.name || '').replace(/'/g, "\\'")}')" class="p-1 text-stone-400 hover:text-red-600 text-xs font-bold" title="Excluir caixote">🗑️</button>
+            </div>
+          ` : ''}
+        </div>
+        <div class="${box.isOpen ? 'block' : 'hidden'} px-4 py-3">
+          <div class="space-y-1.5 mb-2 max-h-[300px] overflow-y-auto pr-1">${list}</div>
+          
+          ${hasMore ? `
+            <button onclick="toggleCaixoteExpansion('${box.id}')" class="w-full py-1.5 text-[11px] font-bold text-amber-800 hover:text-amber-950 bg-amber-50/50 hover:bg-amber-50 rounded-xl border border-amber-200/60 text-center block mb-2 sm-t">
+              ${isExpanded ? '▲ Recolher itens' : `+ ${fabs.length - 3} peças adicionais... (Expandir)`}
+            </button>
+          ` : ''}
+        </div>
       </div>
+      
+      ${box.isOpen && hw ? `
+        <div class="px-4 pb-3">
+          <button onclick="openFabModal('${box.id}')" class="w-full py-2 bg-stone-50 hover:bg-stone-100 text-stone-800 border border-dashed border-stone-200 font-bold rounded-xl text-xs sm-t">
+            + Adicionar peça neste caixote
+          </button>
+        </div>
+      ` : ''}
     </div>`;
-  }).join('') || '<div class="col-span-full text-center text-xs py-8 text-stone-400">Nenhum caixote.</div>';
+  }).join('') || '<div class="col-span-full text-center text-xs py-8 text-stone-400">Nenhum caixote cadastrado.</div>';
 
   ws.innerHTML = `
-    <div class="mb-6 flex flex-col md:flex-row justify-between items-start gap-2">
-      <div><h1 class="font-cinzel text-2xl font-bold text-stone-900">Tecidos & Caixotes</h1><p class="text-xs text-stone-500">Vestuário litúrgico da corrente</p></div>
-      ${hw?`<button onclick="openCaixoteModal()" class="px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-xl uppercase shadow">Criar Caixote</button>`:''}
-    </div>
-    <div class="mb-6 max-w-md"><div class="relative">
-      <input type="text" id="fb-search-inp" value="${fbSrch}" oninput="handleFbSearchInput(this.value, this.selectionStart)" class="w-full pl-9 pr-4 py-2 bg-white border border-stone-200 rounded-xl text-xs focus:outline-none" placeholder="Buscar peça ou linha...">
-      <span class="absolute left-3.5 top-3 text-stone-400 text-xs">🔍</span>
-    </div></div>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">${boxes}</div>`;
-}
-
-function openCaixoteModal(){
-  openModal('Criar Caixote',`<form onsubmit="handleCaixote(event)" class="space-y-4 text-xs">
-    <div><label class="block text-xs font-bold text-stone-500 uppercase mb-1">Nome do Caixote</label><input type="text" id="cx-n" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-    <div class="pt-4 flex justify-end gap-2">
-      <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
-      <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Criar</button>
-    </div></form>`);
-}
-async function handleCaixote(e){e.preventDefault();await fsAdd('caixotes',{name:$('cx-n').value.trim(),isOpen:true});closeModal();notif('Caixote criado','','success');}
-
-function openFabModal(cid){
-  openModal('Lançar Peça',`<form onsubmit="handleFab(event,'${cid}')" class="space-y-4 text-xs">
-    <div><label class="block font-bold text-stone-500 uppercase mb-1">Nome da Peça</label><input type="text" id="fb-n" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-    <div class="grid grid-cols-2 gap-4">
-      <div><label class="block font-bold text-stone-500 uppercase mb-1">Cor</label><input type="text" id="fb-c" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-      <div><label class="block font-bold text-stone-500 uppercase mb-1">Linha Espiritual</label><input type="text" id="fb-l" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-    </div>
-    <div><label class="block font-bold text-stone-500 uppercase mb-1">Quantidade</label><input type="number" min="1" id="fb-q" required value="1" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none"></div>
-    
-    <!-- FOTO DO VESTUÁRIO -->
-    <div>
-      <label class="block font-bold text-stone-500 uppercase mb-1">Foto da Peça (Opcional)</label>
-      <div class="flex items-center gap-3">
-        <label class="px-3 py-2 bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-800 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2 sm-t">
-          📷 Tirar / Enviar Foto
-          <input type="file" accept="image/*" capture="environment" onchange="handleImageUpload(this, 'fb-img', 'fb-img-prev')" class="hidden">
-        </label>
-        <input type="hidden" id="fb-img">
-        <img id="fb-img-prev" class="w-10 h-10 object-cover rounded-xl border border-stone-200 hidden">
+    <div class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 fi">
+      <div>
+        <h1 class="font-cinzel text-2xl font-bold text-stone-900">Tecidos & Caixotes</h1>
+        <p class="text-xs text-stone-500">Vestuário litúrgico e organização da corrente</p>
+      </div>
+      <div class="flex flex-wrap gap-2 w-full md:w-auto">
+        <button onclick="toggleAllCaixotes(true)" class="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl sm-t flex items-center gap-1">
+          <span>▼</span> Abrir Todos
+        </button>
+        <button onclick="toggleAllCaixotes(false)" class="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl sm-t flex items-center gap-1">
+          <span>▲</span> Fechar Todos
+        </button>
+        ${hw ? `
+          <button onclick="openCaixoteModal()" class="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl uppercase shadow sm-t">
+            + Criar Caixote
+          </button>
+        ` : ''}
       </div>
     </div>
 
-    <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
-      <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
-      <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Lançar</button>
-    </div></form>`);
+    <div class="flex flex-col md:flex-row justify-between items-center gap-3 mb-6 fi">
+      <div class="relative w-full max-w-md">
+        <input type="text" id="fb-search-inp" value="${fbSrch}" oninput="handleFbSearchInput(this.value, this.selectionStart)" class="w-full pl-9 pr-4 py-2.5 bg-white border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/30" placeholder="Buscar peça, cor ou linha espiritual...">
+        <span class="absolute left-3.5 top-3 text-stone-400 text-xs">🔍</span>
+      </div>
+
+      <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+        <label class="text-xs font-bold text-stone-500 uppercase whitespace-nowrap">Ordem dos Caixotes:</label>
+        <select onchange="cxSortOrder=this.value;render()" class="p-2 bg-white border border-stone-200 rounded-xl text-xs font-bold focus:outline-none text-stone-800">
+          <option value="numDesc" ${cxSortOrder === 'numDesc' ? 'selected' : ''}>🔢 Maior nº primeiro (Ex: 10, 9, 8...)</option>
+          <option value="numAsc" ${cxSortOrder === 'numAsc' ? 'selected' : ''}>🔢 Menor nº primeiro (Ex: 1, 2, 3...)</option>
+          <option value="nameAsc" ${cxSortOrder === 'nameAsc' ? 'selected' : ''}>🔤 Nome (A → Z)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 fi">${boxes}</div>`;
 }
 
-async function handleFab(e,cid){
+function openCaixoteModal() {
+  const nextNum = (S.caixotes.reduce((max, c) => Math.max(max, extractBoxNumber(c.name)), 0) || 0) + 1;
+  openModal('Criar Novo Caixote', `
+    <form onsubmit="handleCaixote(event)" class="space-y-4 text-xs">
+      <div>
+        <label class="block text-xs font-bold text-stone-500 uppercase mb-1">Nome / Identificação do Caixote</label>
+        <input type="text" id="cx-n" required value="Caixote ${nextNum}" placeholder="Ex: Caixote ${nextNum} (Oxalá)" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none font-bold text-stone-800">
+      </div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Criar Caixote</button>
+      </div>
+    </form>
+  `);
+}
+
+async function handleCaixote(e) {
   e.preventDefault();
-  await fsAdd('fabrics',{
-    caixoteId:cid,
-    pieceName:$('fb-n').value.trim(),
-    color:$('fb-c').value.trim(),
-    line:$('fb-l').value.trim(),
-    quantity:parseInt($('fb-q').value),
-    imageUrl:$('fb-img')?.value || ''
-  });
-  closeModal(); notif('Peça cadastrada','','success');
+  const name = $('cx-n').value.trim();
+  await fsAdd('caixotes', { name, isOpen: true });
+  await addLog(`Criou caixote: ${name}`);
+  closeModal();
+  notif('Caixote criado com sucesso!', '', 'success');
+}
+
+function openRenameCaixoteModal(id, currentName) {
+  openModal('Renomear Caixote', `
+    <form onsubmit="handleRenameCaixote(event, '${id}')" class="space-y-4 text-xs">
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Novo Nome do Caixote</label>
+        <input type="text" id="cx-rename" required value="${currentName}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+      </div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Salvar</button>
+      </div>
+    </form>
+  `);
+}
+
+async function handleRenameCaixote(e, id) {
+  e.preventDefault();
+  const name = $('cx-rename').value.trim();
+  if (!name) return;
+  await fsUpd('caixotes', id, { name });
+  await addLog(`Renomeou caixote para: ${name}`);
+  closeModal();
+  notif('Caixote renomeado!', '', 'success');
+}
+
+function confirmDelCaixote(id, name) {
+  const count = S.fabrics.filter(f => f.caixoteId === id).length;
+  if (count > 0) {
+    notif('Atenção', `Este caixote possui ${count} peças cadastradas. Transfira ou remova as peças antes de excluí-lo.`, 'error');
+    return;
+  }
+  openModal('Excluir Caixote', `
+    <div class="space-y-4 text-xs">
+      <div class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 leading-relaxed">
+        Tem certeza que deseja excluir o <strong>${name}</strong>?
+      </div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="button" onclick="fsDel('caixotes','${id}').then(()=>{ closeModal(); notif('Caixote excluído.','','warning'); })" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold">Excluir</button>
+      </div>
+    </div>
+  `);
+}
+
+function openFabModal(cid) {
+  openModal('Lançar Peça no Caixote', `
+    <form onsubmit="handleFab(event,'${cid}')" class="space-y-4 text-xs">
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Nome da Peça</label>
+        <input type="text" id="fb-n" required placeholder="Ex: Saia de Renda Branca" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block font-bold text-stone-500 uppercase mb-1">Cor</label>
+          <input type="text" id="fb-c" required placeholder="Ex: Branco com Dourado" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+        </div>
+        <div>
+          <label class="block font-bold text-stone-500 uppercase mb-1">Linha Espiritual</label>
+          <input type="text" id="fb-l" required placeholder="Ex: Oxalá / Baianos" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+        </div>
+      </div>
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Quantidade</label>
+        <input type="number" min="1" id="fb-q" required value="1" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+      </div>
+      
+      <!-- FOTO DO VESTUÁRIO -->
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Foto da Peça (Opcional)</label>
+        <div class="flex items-center gap-3">
+          <label class="px-3 py-2 bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-800 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2 sm-t">
+            📷 Tirar / Enviar Foto
+            <input type="file" accept="image/*" capture="environment" onchange="handleImageUpload(this, 'fb-img', 'fb-img-prev')" class="hidden">
+          </label>
+          <input type="hidden" id="fb-img">
+          <img id="fb-img-prev" class="w-10 h-10 object-cover rounded-xl border border-stone-200 hidden">
+        </div>
+      </div>
+
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Lançar Peça</button>
+      </div>
+    </form>
+  `);
+}
+
+async function handleFab(e, cid) {
+  e.preventDefault();
+  const data = {
+    caixoteId: cid,
+    pieceName: $('fb-n').value.trim(),
+    color: $('fb-c').value.trim(),
+    line: $('fb-l').value.trim(),
+    quantity: parseInt($('fb-q').value) || 1,
+    imageUrl: $('fb-img')?.value || ''
+  };
+  await fsAdd('fabrics', data);
+  await addLog(`Cadastrou peça em caixote: ${data.pieceName}`);
+  closeModal();
+  notif('Peça cadastrada!', '', 'success');
+}
+
+// EDIÇÃO DE PEÇA
+function openEditFabModal(id) {
+  const item = S.fabrics.find(f => f.id === id);
+  if (!item) return;
+
+  openModal(`Editar Peça: ${item.pieceName}`, `
+    <form onsubmit="handleEditFab(event, '${id}')" class="space-y-4 text-xs">
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Nome da Peça</label>
+        <input type="text" id="efb-n" required value="${item.pieceName || ''}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block font-bold text-stone-500 uppercase mb-1">Cor</label>
+          <input type="text" id="efb-c" required value="${item.color || ''}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+        </div>
+        <div>
+          <label class="block font-bold text-stone-500 uppercase mb-1">Linha Espiritual</label>
+          <input type="text" id="efb-l" required value="${item.line || ''}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+        </div>
+      </div>
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Quantidade</label>
+        <input type="number" min="1" id="efb-q" required value="${item.quantity || 1}" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none">
+      </div>
+      
+      <!-- FOTO DO VESTUÁRIO -->
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Foto da Peça</label>
+        <div class="flex items-center gap-3">
+          <label class="px-3 py-2 bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-800 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2 sm-t">
+            📷 Alterar Foto
+            <input type="file" accept="image/*" capture="environment" onchange="handleImageUpload(this, 'efb-img', 'efb-img-prev')" class="hidden">
+          </label>
+          <input type="hidden" id="efb-img" value="${item.imageUrl || ''}">
+          <img id="efb-img-prev" src="${item.imageUrl || ''}" class="w-10 h-10 object-cover rounded-xl border border-stone-200 ${item.imageUrl ? '' : 'hidden'}">
+        </div>
+      </div>
+
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-stone-900 text-white rounded-xl font-bold">Salvar Alterações</button>
+      </div>
+    </form>
+  `);
+}
+
+async function handleEditFab(e, id) {
+  e.preventDefault();
+  const data = {
+    pieceName: $('efb-n').value.trim(),
+    color: $('efb-c').value.trim(),
+    line: $('efb-l').value.trim(),
+    quantity: parseInt($('efb-q').value) || 1,
+    imageUrl: $('efb-img')?.value || ''
+  };
+  await fsUpd('fabrics', id, data);
+  await addLog(`Editou peça: ${data.pieceName}`);
+  closeModal();
+  notif('Peça atualizada com sucesso!', '', 'success');
+}
+
+// TRANSFERÊNCIA DE PEÇA ENTRE CAIXOTES
+function openTransferFabModal(id) {
+  const item = S.fabrics.find(f => f.id === id);
+  if (!item) return;
+
+  const curBox = S.caixotes.find(b => b.id === item.caixoteId);
+  const curBoxName = curBox?.name || 'Caixote Atual';
+
+  const otherBoxes = S.caixotes
+    .filter(b => b.id !== item.caixoteId)
+    .sort((a, b) => extractBoxNumber(b.name) - extractBoxNumber(a.name));
+
+  if (otherBoxes.length === 0) {
+    notif('Aviso', 'Cadastre outro caixote antes de efetuar transferências.', 'warning');
+    return;
+  }
+
+  const boxOptions = otherBoxes.map(b => `
+    <option value="${b.id}">📦 ${b.name}</option>
+  `).join('');
+
+  const imgHtml = item.imageUrl?.trim()
+    ? `<img src="${item.imageUrl}" class="w-12 h-12 object-cover rounded-xl border border-stone-200 shrink-0">`
+    : `<div class="w-12 h-12 bg-amber-50 text-amber-800 rounded-xl border border-amber-200/60 flex items-center justify-center font-bold text-sm shrink-0">👕</div>`;
+
+  openModal(`Mover Peça para Outro Caixote`, `
+    <form onsubmit="handleTransferFab(event, '${id}')" class="space-y-4 text-xs">
+      <div class="flex items-center gap-3 p-3 bg-stone-50 border border-stone-200 rounded-2xl">
+        ${imgHtml}
+        <div class="min-w-0 flex-1">
+          <span class="block text-[10px] uppercase font-bold text-stone-400">Peça Selecionada</span>
+          <h4 class="font-bold text-stone-900 text-sm truncate">${item.pieceName}</h4>
+          <p class="text-stone-500 text-[10px]">Caixote de Origem: <strong class="text-amber-800">${curBoxName}</strong> (${item.quantity} peças)</p>
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-bold text-stone-500 uppercase mb-1">Caixote de Destino</label>
+        <select id="tf-fab-dest" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none font-bold text-stone-800">
+          ${boxOptions}
+        </select>
+      </div>
+
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white rounded-xl font-bold">Confirmar Transferência</button>
+      </div>
+    </form>
+  `);
+}
+
+async function handleTransferFab(e, id) {
+  e.preventDefault();
+  const targetBoxId = $('tf-fab-dest').value;
+  const item = S.fabrics.find(f => f.id === id);
+  if (!item || !targetBoxId) return;
+
+  const targetBox = S.caixotes.find(b => b.id === targetBoxId);
+  const targetBoxName = targetBox?.name || 'Novo Caixote';
+
+  await fsUpd('fabrics', id, { caixoteId: targetBoxId });
+  await addLog(`Moveu peça ${item.pieceName} → ${targetBoxName}`);
+  closeModal();
+  notif('Peça transferida!', `Movida para ${targetBoxName} com sucesso.`, 'success');
+}
+
+function confirmDelFab(id, name) {
+  openModal('Excluir Peça', `
+    <div class="space-y-4 text-xs">
+      <div class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 leading-relaxed">
+        Tem certeza que deseja excluir a peça <strong>${name}</strong>?
+      </div>
+      <div class="pt-4 flex justify-end gap-2 border-t border-stone-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl font-bold">Cancelar</button>
+        <button type="button" onclick="fsDel('fabrics','${id}').then(()=>{ closeModal(); notif('Peça excluída.','','warning'); })" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold">Excluir</button>
+      </div>
+    </div>
+  `);
 }
 
 // ══════════════════════════════════════════════════════
