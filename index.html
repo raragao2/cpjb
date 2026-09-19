@@ -375,87 +375,9 @@ if (S.cfg?.logoUrl?.trim())
 return `<img src="${S.cfg.logoUrl}" width="${w}" height="${h}" class="object-contain rounded-full border border-amber-500/20 shadow-sm" onerror="this.style.display='none'">`;
 return `<svg width="${w}" height="${h}" viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" fill="none" stroke="#ca8a04" stroke-width="2"/><circle cx="60" cy="60" r="48" fill="none" stroke="#292524" stroke-width="4"/><line x1="60" y1="28" x2="60" y2="92" stroke="#292524" stroke-width="6" stroke-linecap="round"/><line x1="28" y1="60" x2="92" y2="60" stroke="#292524" stroke-width="6" stroke-linecap="round"/><polygon points="40,36 42,41 47,41 43,44 45,49 40,46 35,49 37,44 33,41 38,41" fill="#ca8a04"/><polygon points="80,84 82,89 87,89 83,92 85,97 80,94 75,97 77,92 73,89 78,89" fill="#ca8a04"/></svg>`;
 }
-// ═══════════════════════════════════════════════════════
-// ATUALIZAÇÃO DA LOGO E IDENTIDADE (TELA DE LOGIN E SIDEBAR)
-// ═══════════════════════════════════════════════════════
 
 function updateLogos() {
-  // Busca a URL da logo do estado da aplicação ou do cache do navegador (localStorage)
-  const logoUrl = S.cfg.logoUrl || localStorage.getItem('cfg_logoUrl') || '';
-  const terreiroName = S.cfg.terreiroName || localStorage.getItem('cfg_terreiroName') || 'Cantinho de Pai José da Bahia';
-  const subtitle = S.cfg.subtitle || localStorage.getItem('cfg_subtitle') || 'Terreiro de Umbanda e Caridade';
-
-  // 1. Atualiza títulos do Login e da Sidebar
-  const ttlLogin = $('ttl-login'); if (ttlLogin) ttlLogin.innerText = terreiroName;
-  const subLogin = $('sub-login'); if (subLogin) subLogin.innerText = subtitle;
-  const sbTitle  = $('sb-title');  if (sbTitle)  sbTitle.innerText  = terreiroName;
-  const sbSub    = $('sb-sub');    if (sbSub)    sbSub.innerText    = subtitle;
-
-  // SVGs padrão (fallback caso não haja URL de imagem cadastrada)
-  const defaultSvgLogin = `<svg width="80" height="80" viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" fill="none" stroke="#ca8a04" stroke-width="2"/><circle cx="60" cy="60" r="48" fill="none" stroke="#292524" stroke-width="4"/><line x1="60" y1="28" x2="60" y2="92" stroke="#292524" stroke-width="6" stroke-linecap="round"/><line x1="28" y1="60" x2="92" y2="60" stroke="#292524" stroke-width="6" stroke-linecap="round"/><polygon points="40,36 42,41 47,41 43,44 45,49 40,46 35,49 37,44 33,41 38,41" fill="#ca8a04"/></svg>`;
-  const defaultSvgSb    = `<svg width="36" height="36" viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" fill="none" stroke="#ca8a04" stroke-width="2"/><circle cx="60" cy="60" r="48" fill="none" stroke="#292524" stroke-width="4"/><line x1="60" y1="28" x2="60" y2="92" stroke="#292524" stroke-width="6" stroke-linecap="round"/><line x1="28" y1="60" x2="92" y2="60" stroke="#292524" stroke-width="6" stroke-linecap="round"/></svg>`;
-
-  // 2. Renderiza a Logo na Tela de LOGIN
-  const logoLoginEl = $('logo-login');
-  if (logoLoginEl) {
-    logoLoginEl.innerHTML = logoUrl
-      ? `<img src="${logoUrl}" class="w-24 h-24 object-contain rounded-2xl mx-auto shadow-sm" alt="Logo ${terreiroName}">`
-      : defaultSvgLogin;
-  }
-
-  // 3. Renderiza a Logo no Menu Lateral (SIDEBAR)
-  const logoSbEl = $('logo-sb');
-  if (logoSbEl) {
-    logoSbEl.innerHTML = logoUrl
-      ? `<img src="${logoUrl}" class="w-10 h-10 object-contain rounded-xl" alt="Logo">`
-      : defaultSvgSb;
-  }
-}
-
-// Carrega as configurações públicas antes de fazer o login
-async function loadPublicCfg() {
-  try {
-    const s = await F().getDoc(ref('config', 'main'));
-    if (s.exists()) {
-      S.cfg = s.data();
-      // Grava no cache local do navegador para persistir deslogado
-      if (S.cfg.logoUrl) localStorage.setItem('cfg_logoUrl', S.cfg.logoUrl);
-      if (S.cfg.terreiroName) localStorage.setItem('cfg_terreiroName', S.cfg.terreiroName);
-      if (S.cfg.subtitle) localStorage.setItem('cfg_subtitle', S.cfg.subtitle);
-    }
-  } catch (e) {
-    console.warn("Lendo identidade via cache local...");
-  }
-  updateLogos();
-}
-
-// Atualização ao salvar a página de Administração
-async function handleCfg(e) {
-  e.preventDefault();
-  const data = {
-    terreiroName: $('cfg-n').value.trim(),
-    subtitle:     $('cfg-s').value.trim(),
-    pixKey:       $('cfg-p').value.trim(),
-    logoUrl:      $('cfg-l').value.trim()
-  };
-
-  await fsSet('config', 'main', data);
-  S.cfg = data;
-
-  // Salva no localStorage para persistir instantaneamente na tela inicial
-  localStorage.setItem('cfg_logoUrl', data.logoUrl);
-  localStorage.setItem('cfg_terreiroName', data.terreiroName);
-  localStorage.setItem('cfg_subtitle', data.subtitle);
-
-  updateLogos();
-  await addLog('Atualizou configurações e logo do terreiro');
-  notif('Configurações salvas!', 'Logo e identidade atualizadas.', 'success');
-}
-
-// Chama a atualização de logo na inicialização da tela de login
-function goLogin() {
-  pg('login');
-  loadPublicCfg();
+[['logo-login',120],['logo-sb',44],['logo-mob',32]].forEach(([id,s])=>{ const el=$(id); if(el) el.innerHTML=logoSVG(s,s); });
 }
 
 // ══════════════════════════════════════════════════════
